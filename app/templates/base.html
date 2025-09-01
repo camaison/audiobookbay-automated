@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AudiobookBay{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
@@ -13,7 +14,10 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-brand">
-                <h2>AudiobookBay</h2>
+                <a href="{{ url_for('home') }}" class="brand-link">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="AudiobookBay" class="brand-logo">
+                    <h2>AudiobookBay</h2>
+                </a>
             </div>
             
             <!-- Navigation Links -->
@@ -25,26 +29,6 @@
                     Search
                 </a>
                 
-                <!-- Categories Dropdown -->
-                <div class="nav-dropdown">
-                    <a href="#" class="nav-link dropdown-toggle {% if request.endpoint == 'browse_by_category' %}active{% endif %}" onclick="toggleDropdown(event)">
-                        Categories <span class="dropdown-arrow">▼</span>
-                    </a>
-                    <div class="dropdown-menu" id="categoriesDropdown">
-                        <a href="{{ url_for('browse_by_category', category='fantasy') }}" class="dropdown-item">Fantasy</a>
-                        <a href="{{ url_for('browse_by_category', category='mystery') }}" class="dropdown-item">Mystery</a>
-                        <a href="{{ url_for('browse_by_category', category='romance') }}" class="dropdown-item">Romance</a>
-                        <a href="{{ url_for('browse_by_category', category='science-fiction') }}" class="dropdown-item">Sci-Fi</a>
-                        <a href="{{ url_for('browse_by_category', category='thriller') }}" class="dropdown-item">Thriller</a>
-                        <a href="{{ url_for('browse_by_category', category='biography') }}" class="dropdown-item">Biography</a>
-                        <a href="{{ url_for('browse_by_category', category='history') }}" class="dropdown-item">History</a>
-                        <a href="{{ url_for('browse_by_category', category='self-help') }}" class="dropdown-item">Self Help</a>
-                        <a href="{{ url_for('browse_by_category', category='business') }}" class="dropdown-item">Business</a>
-                        <a href="{{ url_for('browse_by_category', category='classic') }}" class="dropdown-item">Classic</a>
-                        <a href="{{ url_for('browse_by_category', category='young-adult') }}" class="dropdown-item">Young Adult</a>
-                        <a href="{{ url_for('browse_by_category', category='children') }}" class="dropdown-item">Children</a>
-                    </div>
-                </div>
                 
                 <a href="{{ url_for('status') }}" class="nav-link {% if request.endpoint == 'status' %}active{% endif %}">
                     Downloads
@@ -52,6 +36,11 @@
                 <a href="{{ url_for('favorites_page') }}" class="nav-link {% if request.endpoint == 'favorites_page' %}active{% endif %}">
                     Favorites
                 </a>
+                {% if current_user.user_type == 'root' %}
+                <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if 'admin' in request.endpoint %}active{% endif %}">
+                    Admin
+                </a>
+                {% endif %}
                 {% if nav_link_name and nav_link_url %}
                 <a href="{{ nav_link_url }}" target="_blank" class="nav-link">
                     {{ nav_link_name }}
@@ -81,7 +70,16 @@
     <!-- Page Content -->
     <main class="content">
         <div class="container">
-            {% block content %}{% endblock %}
+            <div class="page-layout">
+                <!-- Main Content Area -->
+                <div class="main-content">
+                    {% block content %}{% endblock %}
+                </div>
+                
+                <!-- Sidebar will be implemented properly later -->
+                {% block sidebar %}
+                {% endblock %}
+            </div>
         </div>
     </main>
 
@@ -149,26 +147,13 @@
             navLinks.classList.toggle('mobile-open');
         }
 
-        // Categories dropdown
-        function toggleDropdown(event) {
-            event.preventDefault();
-            const dropdown = document.getElementById('categoriesDropdown');
-            dropdown.classList.toggle('show');
-        }
-
-        // Close mobile menu and dropdown when clicking outside
+        // Close mobile menu when clicking outside
         document.addEventListener('click', function(event) {
             const navLinks = document.getElementById('navLinks');
             const menuBtn = document.querySelector('.mobile-menu-btn');
-            const dropdown = document.getElementById('categoriesDropdown');
-            const dropdownToggle = document.querySelector('.dropdown-toggle');
             
             if (!navLinks.contains(event.target) && !menuBtn.contains(event.target)) {
                 navLinks.classList.remove('mobile-open');
-            }
-            
-            if (!dropdown.contains(event.target) && !dropdownToggle.contains(event.target)) {
-                dropdown.classList.remove('show');
             }
         });
 

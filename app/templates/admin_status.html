@@ -1,0 +1,607 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Torrent Status - AudiobookBay{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Modern Admin Design System - Status Page */
+.admin-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+}
+
+/* Header */
+.admin-header {
+    margin-bottom: 48px;
+}
+
+.admin-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0 0 8px 0;
+    letter-spacing: -0.02em;
+}
+
+.admin-subtitle {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Navigation Pills */
+.admin-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 40px;
+    padding: 4px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    width: fit-content;
+}
+
+.admin-nav-item {
+    padding: 12px 20px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.875rem;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+}
+
+.admin-nav-item:hover {
+    color: var(--text-color);
+    background: var(--bg-primary);
+}
+
+.admin-nav-item.active {
+    background: var(--bg-primary);
+    color: var(--text-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Stats Overview */
+.stats-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card.downloading {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(99, 102, 241, 0.05));
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.stat-card.seeding {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(22, 163, 74, 0.05));
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.stat-value {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0 0 4px 0;
+    line-height: 1;
+}
+
+.stat-card.downloading .stat-value {
+    color: #3b82f6;
+}
+
+.stat-card.seeding .stat-value {
+    color: #22c55e;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Torrents Container */
+.torrents-container {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+}
+
+.torrents-header {
+    padding: 24px 28px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.torrents-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+}
+
+.refresh-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.refresh-dot {
+    width: 8px;
+    height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+/* Table Styles */
+.torrents-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.torrents-table th {
+    background: var(--bg-secondary);
+    color: var(--text-color);
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 16px 20px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.torrents-table td {
+    padding: 20px;
+    border-bottom: 1px solid rgba(var(--border-rgb), 0.5);
+    color: var(--text-color);
+    vertical-align: middle;
+}
+
+.torrents-table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.torrents-table tbody tr:hover {
+    background: var(--hover-bg);
+}
+
+.torrents-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Owner Badge */
+.owner-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.owner-badge.unknown {
+    background: rgba(156, 163, 175, 0.1);
+    color: #9ca3af;
+    border-color: rgba(156, 163, 175, 0.2);
+}
+
+.owner-badge::before {
+    content: '👤';
+    font-size: 0.875rem;
+}
+
+/* Torrent Name */
+.torrent-name {
+    font-weight: 600;
+    color: var(--text-color);
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+/* Progress Bar */
+.progress-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 120px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.progress-fill.downloading {
+    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+}
+
+.progress-fill.paused {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 90px;
+    justify-content: center;
+}
+
+.status-badge.downloading,
+.status-badge.downloading_metadata {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.status-badge.seeding,
+.status-badge.completed {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.status-badge.paused,
+.status-badge.stopped {
+    background: rgba(156, 163, 175, 0.1);
+    color: #6b7280;
+    border: 1px solid rgba(156, 163, 175, 0.2);
+}
+
+.status-badge.error,
+.status-badge.failed {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.status-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2s infinite;
+}
+
+/* Torrent Hash */
+.torrent-hash {
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    padding: 4px 8px;
+    border-radius: 6px;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Size */
+.torrent-size {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.4;
+}
+
+.empty-state h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0 0 8px 0;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* Error Message */
+.error-message {
+    background: #fef2f2;
+    color: #dc2626;
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid #fecaca;
+    text-align: center;
+    margin: 32px 0;
+    font-weight: 500;
+}
+
+/* Animations */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .torrents-table th:nth-child(6),
+    .torrents-table td:nth-child(6) {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-container {
+        padding: 20px 16px;
+    }
+    
+    .admin-title {
+        font-size: 2rem;
+    }
+    
+    .stats-overview {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+    
+    .admin-nav {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .torrents-table {
+        font-size: 0.875rem;
+    }
+    
+    .torrents-table th,
+    .torrents-table td {
+        padding: 12px 16px;
+    }
+    
+    .torrents-table th:nth-child(4),
+    .torrents-table td:nth-child(4),
+    .torrents-table th:nth-child(5),
+    .torrents-table td:nth-child(5) {
+        display: none;
+    }
+    
+    .progress-container {
+        min-width: 80px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-overview {
+        grid-template-columns: 1fr;
+    }
+    
+    .torrent-name {
+        max-width: 200px;
+    }
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .error-message {
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+[data-theme="dark"] .stat-card.downloading {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+[data-theme="dark"] .stat-card.seeding {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+[data-theme="dark"] .status-badge.downloading,
+[data-theme="dark"] .status-badge.downloading_metadata {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+}
+
+[data-theme="dark"] .status-badge.seeding,
+[data-theme="dark"] .status-badge.completed {
+    background: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+}
+
+[data-theme="dark"] .status-badge.error,
+[data-theme="dark"] .status-badge.failed {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <!-- Header -->
+    <header class="admin-header">
+        <h1 class="admin-title">Torrent Status</h1>
+        <p class="admin-subtitle">Live monitoring of all active torrents across users</p>
+    </header>
+    
+    <!-- Navigation -->
+    <nav class="admin-nav">
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-nav-item">
+            Users Overview
+        </a>
+        <a href="{{ url_for('admin_downloads') }}" class="admin-nav-item">
+            All Downloads
+        </a>
+        <a href="{{ url_for('admin_status') }}" class="admin-nav-item active">
+            Torrent Status
+        </a>
+    </nav>
+
+    {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+    {% else %}
+        {% if torrents %}
+            <!-- Stats Overview -->
+            <div class="stats-overview">
+                <div class="stat-card">
+                    <h2 class="stat-value">{{ torrents|length }}</h2>
+                    <p class="stat-label">Active Torrents</p>
+                </div>
+                <div class="stat-card downloading">
+                    <h2 class="stat-value">{{ torrents|selectattr('state', 'equalto', 'downloading')|list|length + torrents|selectattr('state', 'equalto', 'downloading_metadata')|list|length }}</h2>
+                    <p class="stat-label">Downloading</p>
+                </div>
+                <div class="stat-card seeding">
+                    <h2 class="stat-value">{{ torrents|selectattr('state', 'equalto', 'seeding')|list|length + torrents|selectattr('state', 'equalto', 'completed')|list|length }}</h2>
+                    <p class="stat-label">Seeding</p>
+                </div>
+                <div class="stat-card">
+                    <h2 class="stat-value">{{ torrents|map(attribute='owner')|unique|list|length }}</h2>
+                    <p class="stat-label">Active Users</p>
+                </div>
+            </div>
+            
+            <!-- Torrents Table -->
+            <div class="torrents-container">
+                <div class="torrents-header">
+                    <h2 class="torrents-title">Active Torrents</h2>
+                    <div class="refresh-indicator">
+                        <div class="refresh-dot"></div>
+                        <span>Live Status</span>
+                    </div>
+                </div>
+                
+                <table class="torrents-table">
+                    <thead>
+                        <tr>
+                            <th>Owner</th>
+                            <th>Torrent Name</th>
+                            <th>Progress</th>
+                            <th>Status</th>
+                            <th>Size</th>
+                            <th>Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for torrent in torrents %}
+                        <tr>
+                            <td>
+                                <span class="owner-badge {{ 'unknown' if torrent.owner == 'Unknown' else '' }}">
+                                    {{ torrent.owner }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="torrent-name" title="{{ torrent.name }}">
+                                    {{ torrent.name }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="progress-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill {{ torrent.state }}" style="width: {{ torrent.progress }}%"></div>
+                                    </div>
+                                    <div class="progress-text">{{ torrent.progress }}%</div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge {{ torrent.state }}">
+                                    {{ torrent.state.replace('_', ' ').title() }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="torrent-size">{{ torrent.size }}</div>
+                            </td>
+                            <td>
+                                <div class="torrent-hash" title="{{ torrent.hash }}">
+                                    {{ torrent.hash[:12] }}...
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">🔄</div>
+                <h3>No Active Torrents</h3>
+                <p>No torrents are currently active in the download client. Downloads will appear here when users start downloading books.</p>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

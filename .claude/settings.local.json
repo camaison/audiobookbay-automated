@@ -1,9 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:audiobookbay.is)",
       "WebFetch(domain:audiobookbay.lu)",
-      "Bash(sqlite3:*)"
+      "WebFetch(domain:audiobookbay.is)",
+      "Bash(sqlite3:*)",
+      "Bash(python:*)",
+      "Read(C:\\Users\\cypri\\Pictures\\Screenshots/**)",
+      "Read(C:\\Users\\cypri\\Pictures\\Screenshots/**)",
+      "Read(C:\\Users\\cypri\\Pictures\\Screenshots/**)",
+      "Bash(set PYTHONIOENCODING=utf-8)",
+      "Bash(cat:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(set ABS_DATABASE_PATH=C:UserscypriVideosPlexConfigabsdatabase.sqlite)",
+      "Read(C:\\Users\\cypri\\Pictures\\Screenshots/**)",
+      "Bash(dir:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

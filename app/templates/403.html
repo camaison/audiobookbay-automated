@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Access Denied - AudiobookBay{% endblock %}
+
+{% block extra_css %}
+<style>
+.error-page {
+    max-width: 600px;
+    margin: 100px auto;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.error-code {
+    font-size: 6em;
+    font-weight: bold;
+    color: var(--accent-color);
+    margin-bottom: 20px;
+    line-height: 1;
+}
+
+.error-title {
+    font-size: 2em;
+    color: var(--text-color);
+    margin-bottom: 20px;
+}
+
+.error-message {
+    color: var(--text-secondary);
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 40px;
+}
+
+.error-actions {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: var(--accent-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--hover-bg);
+    transform: translateY(-2px);
+}
+
+.lock-icon {
+    font-size: 4em;
+    color: var(--text-secondary);
+    margin-bottom: 30px;
+    opacity: 0.6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="lock-icon">🔒</div>
+    <div class="error-code">403</div>
+    <h1 class="error-title">Access Denied</h1>
+    <p class="error-message">
+        You don't have permission to access this page. This area is restricted to administrators only.
+    </p>
+    <div class="error-actions">
+        <a href="{{ url_for('home') }}" class="btn btn-primary">
+            🏠 Go Home
+        </a>
+        <a href="javascript:history.back()" class="btn btn-secondary">
+            ← Go Back
+        </a>
+    </div>
+</div>
+{% endblock %}

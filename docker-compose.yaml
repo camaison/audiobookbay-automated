@@ -14,7 +14,7 @@ services:
       - DL_USERNAME=admin
       - DL_PASSWORD=password
       - DL_CATEGORY=abb-downloader
-      - ABB_HOSTNAME=aud iobookbay.is
+      - ABB_HOSTNAME=audiobookbay.is
       - PAGE_LIMIT=5
       - SAVE_PATH_BASE=/audiobooks
       - NAV_LINK_NAME=AudiobookShelf

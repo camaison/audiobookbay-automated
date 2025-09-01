@@ -11,64 +11,105 @@
 
 <div class="page-header">
     <h1 class="page-title">Search Audiobooks</h1>
-    <p class="page-subtitle">Find and download audiobooks from AudiobookBay</p>
 </div>
 
-<div class="search-container">
-    <form method="post" class="search-form" onsubmit="showLoadingSpinner()">
-        <input type="text" name="query" placeholder="Search for audiobooks..." class="search-bar" value="{{ query or '' }}" required>
-        <button type="submit" class="search-button">
-            <span class="button-text">Search</span>
-            <div class="button-spinner" id="button-spinner" style="display: none;">
-                <div class="spinner"></div>
-            </div>
-        </button>
-    </form>
+<div class="search-container" id="searchContainer">
+    <div class="search-form-wrapper">
+        <form method="post" class="search-form" id="searchForm" onsubmit="showLoadingSpinner()">
+            <input type="text" name="query" placeholder="Search for audiobooks..." class="search-bar" value="{{ query or '' }}" required 
+                   onfocus="showHotSearches()" onblur="hideHotSearches()">
+            <button type="submit" class="search-button">
+                <span class="button-text">Search</span>
+                <div class="button-spinner" id="button-spinner" style="display: none;">
+                    <div class="spinner"></div>
+                </div>
+            </button>
+        </form>
+        
+        <!-- Advanced Search Toggle - Now to the right -->
+        <div class="search-filters">
+            <button type="button" class="filter-toggle" onclick="toggleAdvancedSearch()">
+                <span id="advancedIcon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span>Advanced Search</span>
+            </button>
+        </div>
+    </div>
     
-    <!-- Advanced Search Toggle -->
-    <div class="search-filters">
-        <button type="button" class="filter-toggle" onclick="toggleFilters()">
-            <span id="filterIcon">🔽</span>
-            <span>Advanced Search</span>
-        </button>
+    <!-- Hot Search Tiles -->
+    <div class="hot-search-section" id="hotSearchSection" style="display: none;">
+        <div class="hot-search-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+            </svg>
+            <span>What others are searching</span>
+        </div>
+        <div class="hot-search-tiles" id="hotSearchTiles">
+            <div class="loading-tiles">Loading popular searches...</div>
+        </div>
     </div>
     
     <!-- Advanced Search Panel -->
-    <div class="advanced-search" id="advancedSearch" style="display: none;">
-        <div class="filter-section">
-            <h4>Popular Categories</h4>
-            <div class="filter-chips">
-                <button type="button" class="filter-chip" data-filter="fantasy">Fantasy</button>
-                <button type="button" class="filter-chip" data-filter="mystery">Mystery</button>
-                <button type="button" class="filter-chip" data-filter="romance">Romance</button>
-                <button type="button" class="filter-chip" data-filter="thriller">Thriller</button>
-                <button type="button" class="filter-chip" data-filter="science fiction">Sci-Fi</button>
-                <button type="button" class="filter-chip" data-filter="biography">Biography</button>
-                <button type="button" class="filter-chip" data-filter="self-help">Self-Help</button>
-                <button type="button" class="filter-chip" data-filter="business">Business</button>
+    <div class="advanced-search-panel" id="advancedSearchPanel" style="display: none;">
+        <!-- Search Parameters -->
+        <div class="search-parameters">
+            <div class="search-param-group">
+                <label for="searchTitle">Title:</label>
+                <input type="text" id="searchTitle" placeholder="Book title...">
+            </div>
+            <div class="search-param-group">
+                <label for="searchAuthor">Author:</label>
+                <input type="text" id="searchAuthor" placeholder="Author name...">
+            </div>
+            <div class="search-param-group">
+                <label for="searchNarrator">Narrator:</label>
+                <input type="text" id="searchNarrator" placeholder="Narrator name...">
             </div>
         </div>
-        
-        <div class="filter-section">
-            <h4>Quick Filters</h4>
-            <div class="filter-chips">
-                <button type="button" class="filter-chip" data-filter="bestseller">Bestsellers</button>
-                <button type="button" class="filter-chip" data-filter="new">New Releases</button>
-                <button type="button" class="filter-chip" data-filter="series">Book Series</button>
-                <button type="button" class="filter-chip" data-filter="award">Award Winners</button>
+
+        <!-- Browse Sections -->
+        <div class="browse-sections">
+            <!-- Age Section -->
+            <div class="browse-section">
+                <h3 class="section-title">Age</h3>
+                <div class="section-items" id="ageItems">
+                    <div class="loading-items">Loading age categories...</div>
+                </div>
             </div>
-        </div>
-        
-        <div class="filter-section">
-            <h4>Recent Searches</h4>
-            <div class="filter-chips" id="searchHistory">
-                <div class="loading-history">Loading search history...</div>
+
+            <!-- Category Section -->
+            <div class="browse-section">
+                <h3 class="section-title">Category</h3>
+                <div class="section-items" id="categoryItems">
+                    <div class="loading-items">Loading categories...</div>
+                </div>
             </div>
+
+            <!-- Modifiers Section -->
+            <div class="browse-section">
+                <h3 class="section-title">Modifiers</h3>
+                <div class="section-items" id="modifierItems">
+                    <div class="loading-items">Loading modifiers...</div>
+                </div>
+            </div>
+
+            <!-- Popular Languages Section -->
+            <div class="browse-section">
+                <h3 class="section-title">Popular Languages</h3>
+                <div class="section-items" id="languageItems">
+                    <div class="loading-items">Loading languages...</div>
+                </div>
+            </div>
+
         </div>
-        
-        <div class="filter-actions">
-            <button type="button" class="btn btn-secondary" onclick="clearFilters()">Clear All</button>
-            <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+
+        <!-- Advanced Search Actions -->
+        <div class="advanced-search-actions">
+            <button type="button" class="btn btn-secondary" onclick="clearAdvancedSearch()">Clear All</button>
+            <button type="button" class="btn btn-primary" onclick="performAdvancedSearch()">Search with Filters</button>
         </div>
     </div>
 </div>
@@ -100,13 +141,43 @@
             {% if book.author %}
             <p class="book-author">by {{ book.author }}</p>
             {% endif %}
-            <div class="book-meta">
-                {% if book.file_size %}
-                <span class="meta-tag">{{ book.file_size }}</span>
-                {% endif %}
+            
+            <!-- Enhanced Metadata Display -->
+            <div class="book-meta-detailed">
+                {% if book.category %}<span class="meta-tag category">{{ book.category }}</span>{% endif %}
+                {% if book.language %}<span class="meta-tag">{{ book.language }}</span>{% endif %}
+                {% if book.file_format %}<span class="meta-tag">{{ book.file_format }}</span>{% endif %}
+                {% if book.bitrate %}<span class="meta-tag">{{ book.bitrate }}</span>{% endif %}
+                {% if book.file_size %}<span class="meta-tag size">{{ book.file_size }}</span>{% endif %}
+                {% if book.duration %}<span class="meta-tag">{{ book.duration }}</span>{% endif %}
+            </div>
+            
+            {% if book.keywords %}
+            <div class="book-keywords">
+                <span class="keywords-text">{{ book.keywords }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="book-details-small">
+                {% if book.upload_date %}<span class="upload-date">Uploaded: {{ book.upload_date }}</span>{% endif %}
+                {% if book.explicit %}<span class="explicit-warning">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="17" r="1" fill="currentColor"/>
+                    </svg>
+                    Explicit
+                </span>{% endif %}
+                {% if book.abridged %}<span class="abridged-indicator">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 1.5 17V7A2.5 2.5 0 0 1 4 4.5h16A2.5 2.5 0 0 1 22.5 7v10a2.5 2.5 0 0 1-2.5 2.5H4z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M16 12l-4-2v4l4-2z" fill="currentColor"/>
+                    </svg>
+                    Abridged
+                </span>{% endif %}
             </div>
             <div class="book-actions">
-                <button class="book-btn favorite" onclick="addToFavorites('{{ book.link|escape }}', '{{ book.title|escape }}', '{{ book.author|escape }}', '{{ book.cover|escape }}', '{{ book.file_size|escape }}', this)">
+                <button class="book-btn favorite" onclick="addToFavorites('{{ book.link|escape }}', '{{ book.title|escape }}', '{{ book.author|escape }}', '{{ book.cover|escape }}', '{{ book.file_size|escape }}', '{{ book.bitrate|escape }}', '{{ book.language|escape }}', '{{ book.file_format|escape }}', '{{ book.duration|escape }}', '{{ book.category|escape }}', this)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
@@ -403,11 +474,17 @@
             <div class="book-info">
                 <h3 class="book-title" onclick="goToDetails('/book/${encodeURIComponent(book.link)}')">${book.title}</h3>
                 ${book.author ? `<p class="book-author">by ${book.author}</p>` : ''}
-                <div class="book-meta">
-                    ${book.file_size ? `<span class="meta-tag">${book.file_size}</span>` : ''}
+                <!-- Enhanced Metadata Display (SAME AS HOMEPAGE) -->
+                <div class="book-meta-detailed">
+                    ${book.category ? `<span class="meta-tag category">${book.category}</span>` : ''}
+                    ${book.language ? `<span class="meta-tag">${book.language}</span>` : ''}
+                    ${book.file_format ? `<span class="meta-tag">${book.file_format}</span>` : ''}
+                    ${book.bitrate ? `<span class="meta-tag">${book.bitrate}</span>` : ''}
+                    ${book.file_size ? `<span class="meta-tag size">${book.file_size}</span>` : ''}
+                    ${book.duration ? `<span class="meta-tag">${book.duration}</span>` : ''}
                 </div>
                 <div class="book-actions">
-                    <button class="book-btn favorite" onclick="addToFavorites('${book.link.replace(/'/g, "\\'")}', '${book.title.replace(/'/g, "\\'")}', '${(book.author || '').replace(/'/g, "\\'")}', '${book.cover.replace(/'/g, "\\'")}', '${(book.file_size || '').replace(/'/g, "\\'")}', this)">
+                    <button class="book-btn favorite" onclick="addToFavorites('${book.link.replace(/'/g, "\\'")}', '${book.title.replace(/'/g, "\\'")}', '${(book.author || '').replace(/'/g, "\\'")}', '${book.cover.replace(/'/g, "\\'")}', '${(book.file_size || '').replace(/'/g, "\\'")}', '${(book.bitrate || '').replace(/'/g, "\\'")}', '${(book.language || 'English').replace(/'/g, "\\'")}', '${(book.file_format || '').replace(/'/g, "\\'")}', '${(book.duration || '').replace(/'/g, "\\'")}', '${(book.category || '').replace(/'/g, "\\'")}', this)">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
@@ -490,6 +567,7 @@
             const data = await response.json();
             
             const grid = document.getElementById('resultsGrid');
+            const searchContainer = document.getElementById('searchContainer');
             
             if (data.books && data.books.length > 0) {
                 // Clear and populate grid
@@ -501,10 +579,16 @@
                 
                 grid.style.display = 'grid';
                 hasMore = data.has_more;
+                
+                // Move search container up
+                searchContainer.classList.add('compact');
             } else {
-                grid.innerHTML = '<div class="no-results"><div class="no-results-icon">📚</div><p>No audiobooks found for your search.</p><p class="subtitle">Try different keywords or browse our featured books.</p></div>';
+                grid.innerHTML = '<div class="no-results"><div class="no-results-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19.5A2.5 2.5 0 0 1 1.5 17V7A2.5 2.5 0 0 1 4 4.5h16A2.5 2.5 0 0 1 22.5 7v10a2.5 2.5 0 0 1-2.5 2.5H4z" stroke="currentColor" stroke-width="2"/></svg></div><p>No audiobooks found for your search.</p><p class="subtitle">Try different keywords or browse our featured books.</p></div>';
                 grid.style.display = 'flex';
                 hasMore = false;
+                
+                // Move search container up even for no results
+                searchContainer.classList.add('compact');
             }
         } catch (error) {
             console.error('Search failed:', error);
@@ -549,9 +633,15 @@
 
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
+        const iconSvg = type === 'success' 
+            ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            : type === 'error' 
+            ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2"/><line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2"/></svg>'
+            : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 6v6m0 4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        
         notification.innerHTML = `
             <div class="notification-content">
-                <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                <span class="notification-icon">${iconSvg}</span>
                 <span class="notification-text">${message}</span>
                 <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
             </div>
@@ -575,10 +665,10 @@
         
         if (filtersVisible) {
             advancedSearch.style.display = 'block';
-            filterIcon.textContent = '🔼';
+            filterIcon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
         } else {
             advancedSearch.style.display = 'none';
-            filterIcon.textContent = '🔽';
+            filterIcon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
         }
     }
 
@@ -763,7 +853,7 @@
         const originalText = favText.textContent;
         
         // Show loading state
-        favIcon.textContent = '⏳';
+        favIcon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-dasharray="32" stroke-dashoffset="32"><animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/><animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/></circle></svg>';
         favText.textContent = 'Loading...';
         button.disabled = true;
         
@@ -786,7 +876,7 @@
                 const data = await response.json();
                 
                 if (data.status === 'removed') {
-                    favIcon.textContent = '💙';
+                    favIcon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                     favText.textContent = 'Favorite';
                     showNotification('Removed from favorites', 'success');
                 } else {
@@ -808,7 +898,7 @@
                 const data = await response.json();
                 
                 if (data.status === 'added' || data.status === 'exists') {
-                    favIcon.textContent = '❤️';
+                    favIcon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z"/></svg>';
                     favText.textContent = 'Favorited';
                     showNotification(data.message, 'success');
                 } else {
@@ -852,7 +942,7 @@
             const favText = button.querySelector('.fav-text');
             
             if (data.is_favorite) {
-                favIcon.textContent = '❤️';
+                favIcon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z"/></svg>';
                 favText.textContent = 'Favorited';
             }
         } catch (error) {
@@ -880,9 +970,9 @@
     }
 
     // Add to favorites function (copied from home.html)
-    async function addToFavorites(link, title, author, cover, fileSize, button) {
+    async function addToFavorites(link, title, author, cover, fileSize, bitrate, language, fileFormat, duration, category, button) {
         const originalHTML = button.innerHTML;
-        button.innerHTML = '<span>⏳</span> Adding...';
+        button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-dasharray="32" stroke-dashoffset="32"><animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/><animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/></circle></svg> Adding...';
         button.disabled = true;
         
         try {
@@ -894,13 +984,18 @@
                     title: title, 
                     author: author, 
                     cover: cover, 
-                    file_size: fileSize 
+                    file_size: fileSize,
+                    bitrate: bitrate || '',
+                    language: language || 'English',
+                    file_format: fileFormat || '',
+                    duration: duration || '',
+                    category: category || ''
                 })
             });
             const data = await response.json();
             
             if (data.status === 'added' || data.status === 'exists') {
-                button.innerHTML = '<span>❤️</span> Favorited';
+                button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z"/></svg> Favorited';
                 showNotification(data.message, 'success');
                 setTimeout(() => {
                     button.innerHTML = originalHTML;
@@ -921,7 +1016,7 @@
     function quickDownload(link, title) {
         const button = event.target.closest('.book-btn');
         const originalHTML = button.innerHTML;
-        button.innerHTML = '<span>⏳</span> Adding...';
+        button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-dasharray="32" stroke-dashoffset="32"><animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite"/><animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite"/></circle></svg> Adding...';
         button.disabled = true;
 
         fetch('/send', {
@@ -933,7 +1028,7 @@
         .then(data => {
             showNotification(data.message, data.message.includes('successfully') ? 'success' : 'error');
             if (data.message.includes('successfully')) {
-                button.innerHTML = '<span>✅</span> Added';
+                button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Added';
                 setTimeout(() => {
                     button.innerHTML = originalHTML;
                     button.disabled = false;
@@ -948,6 +1043,365 @@
             button.innerHTML = originalHTML;
             button.disabled = false;
         });
+    }
+
+    // Hot Search functionality
+    let hotSearchData = [];
+    
+    async function loadHotSearches() {
+        try {
+            const response = await fetch('/api/browse/hot-search');
+            const data = await response.json();
+            
+            if (data.searches && data.searches.length > 0) {
+                hotSearchData = data.searches;
+                displayHotSearchTiles();
+            } else {
+                // If no data, hide the section completely
+                document.getElementById('hotSearchSection').style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error loading hot searches:', error);
+            // Hide section if there's an error
+            document.getElementById('hotSearchSection').style.display = 'none';
+        }
+    }
+    
+    function displayHotSearchTiles() {
+        const tilesContainer = document.getElementById('hotSearchTiles');
+        tilesContainer.innerHTML = '';
+        
+        hotSearchData.forEach(search => {
+            const tile = document.createElement('a');
+            tile.className = 'hot-search-tile';
+            tile.href = '#';
+            tile.textContent = search.term;
+            tile.onclick = (e) => {
+                e.preventDefault();
+                performHotSearch(search.term);
+            };
+            tilesContainer.appendChild(tile);
+        });
+    }
+    
+    function performHotSearch(term) {
+        // Fill search bar and trigger search
+        const searchInput = document.querySelector('.search-bar');
+        searchInput.value = term;
+        
+        // Hide hot searches
+        hideHotSearches();
+        
+        // Trigger search
+        const form = document.querySelector('.search-form');
+        form.dispatchEvent(new Event('submit'));
+    }
+    
+    function showHotSearches() {
+        const section = document.getElementById('hotSearchSection');
+        if (hotSearchData.length > 0) {
+            section.style.display = 'block';
+        }
+    }
+    
+    function hideHotSearches() {
+        // Add small delay to allow tile clicks to work
+        setTimeout(() => {
+            document.getElementById('hotSearchSection').style.display = 'none';
+        }, 200);
+    }
+    
+    // Initialize browse sections on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load hot searches first
+        loadHotSearches();
+        loadAllBrowseSections();
+        
+        // Handle URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const categoryParam = urlParams.get('category');
+        
+        if (categoryParam) {
+            setTimeout(() => {
+                selectBrowseItem('category', categoryParam);
+            }, 1000); // Wait for sections to load
+        }
+    });
+
+    // Load all browse sections dynamically
+    async function loadAllBrowseSections() {
+        await Promise.all([
+            loadAgeSection(),
+            loadCategorySection(),
+            loadModifierSection(),
+            loadLanguageSection()
+        ]);
+    }
+
+    // Load Age section
+    async function loadAgeSection() {
+        try {
+            const response = await fetch('/api/browse/ages');
+            const data = await response.json();
+            const container = document.getElementById('ageItems');
+            
+            if (data.ages && data.ages.length > 0) {
+                container.innerHTML = '';
+                data.ages.forEach(age => {
+                    const item = createSectionItem(age.name, age.count, 'age', age.key);
+                    container.appendChild(item);
+                });
+            } else {
+                container.innerHTML = '<div class="section-item">No age categories available</div>';
+            }
+        } catch (error) {
+            console.error('Error loading age section:', error);
+            document.getElementById('ageItems').innerHTML = '<div class="section-item">Error loading ages</div>';
+        }
+    }
+
+    // Load Category section
+    async function loadCategorySection() {
+        try {
+            const response = await fetch('/api/browse/categories');
+            const data = await response.json();
+            const container = document.getElementById('categoryItems');
+            
+            if (data.categories && data.categories.length > 0) {
+                container.innerHTML = '';
+                data.categories.forEach(category => {
+                    const item = createSectionItem(category.name, category.count, 'category', category.key);
+                    container.appendChild(item);
+                });
+            } else {
+                container.innerHTML = '<div class="section-item">No categories available</div>';
+            }
+        } catch (error) {
+            console.error('Error loading category section:', error);
+            document.getElementById('categoryItems').innerHTML = '<div class="section-item">Error loading categories</div>';
+        }
+    }
+
+    // Load Modifiers section  
+    async function loadModifierSection() {
+        try {
+            const response = await fetch('/api/browse/modifiers');
+            const data = await response.json();
+            const container = document.getElementById('modifierItems');
+            
+            if (data.modifiers && data.modifiers.length > 0) {
+                container.innerHTML = '';
+                data.modifiers.forEach(modifier => {
+                    const item = createSectionItem(modifier.name, modifier.count, 'modifier', modifier.key);
+                    container.appendChild(item);
+                });
+            } else {
+                container.innerHTML = '<div class="section-item">No modifiers available</div>';
+            }
+        } catch (error) {
+            console.error('Error loading modifier section:', error);
+            document.getElementById('modifierItems').innerHTML = '<div class="section-item">Error loading modifiers</div>';
+        }
+    }
+
+    // Load Languages section
+    async function loadLanguageSection() {
+        try {
+            const response = await fetch('/api/browse/languages');
+            const data = await response.json();
+            const container = document.getElementById('languageItems');
+            
+            if (data.languages && data.languages.length > 0) {
+                container.innerHTML = '';
+                data.languages.forEach(language => {
+                    const item = createSectionItem(language.name, language.count, 'language', language.key);
+                    container.appendChild(item);
+                });
+            } else {
+                container.innerHTML = '<div class="section-item">No languages available</div>';
+            }
+        } catch (error) {
+            console.error('Error loading language section:', error);
+            document.getElementById('languageItems').innerHTML = '<div class="section-item">Error loading languages</div>';
+        }
+    }
+
+
+    // Create a section item element
+    function createSectionItem(name, count, type, key) {
+        const item = document.createElement('div');
+        item.className = 'section-item';
+        item.dataset.type = type;
+        item.dataset.key = key;
+        item.onclick = () => selectBrowseItem(type, key);
+        
+        const countSpan = count ? `<span class="item-count">${count}</span>` : '';
+        item.innerHTML = `
+            <span>${name}</span>
+            ${countSpan}
+        `;
+        
+        return item;
+    }
+
+    // Handle selecting browse items
+    async function selectBrowseItem(type, key) {
+        // Clear all active items
+        document.querySelectorAll('.section-item.active').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        // Set clicked item as active
+        const clickedItem = document.querySelector(`[data-type="${type}"][data-key="${key}"]`);
+        if (clickedItem) {
+            clickedItem.classList.add('active');
+        }
+
+        // Clear results and show loading
+        const grid = document.getElementById('resultsGrid');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        
+        grid.style.display = 'none';
+        loadingSpinner.style.display = 'flex';
+
+        try {
+            const response = await fetch(`/api/browse/${type}/${encodeURIComponent(key)}?page=1`);
+            const data = await response.json();
+            
+            if (data.books && data.books.length > 0) {
+                // Clear and populate grid
+                grid.innerHTML = '';
+                data.books.forEach(book => {
+                    const bookCard = createBookCard(book);
+                    grid.appendChild(bookCard);
+                });
+                
+                // Update search state
+                currentQuery = `${type}:${key}`;
+                currentPage = 1;
+                hasMore = data.has_more || false;
+                
+                grid.style.display = 'grid';
+            } else {
+                grid.innerHTML = `<div class="no-results">No books found for ${name}</div>`;
+                grid.style.display = 'block';
+            }
+        } catch (error) {
+            console.error(`Error loading ${type} ${key}:`, error);
+            grid.innerHTML = `<div class="error-message">Error loading books for ${name}</div>`;
+            grid.style.display = 'block';
+        } finally {
+            loadingSpinner.style.display = 'none';
+        }
+    }
+
+    // Advanced Search Functions
+    function toggleAdvancedSearch() {
+        const panel = document.getElementById('advancedSearchPanel');
+        const icon = document.getElementById('advancedIcon');
+        
+        if (panel.style.display === 'none') {
+            panel.style.display = 'block';
+            icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            // Load browse sections when panel is opened
+            if (!panel.dataset.loaded) {
+                loadAllBrowseSections();
+                panel.dataset.loaded = 'true';
+            }
+        } else {
+            panel.style.display = 'none';
+            icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        }
+    }
+
+    function clearAdvancedSearch() {
+        // Clear input fields
+        document.getElementById('searchTitle').value = '';
+        document.getElementById('searchAuthor').value = '';
+        document.getElementById('searchNarrator').value = '';
+        
+        // Clear active filter selections
+        document.querySelectorAll('.section-item.active').forEach(item => {
+            item.classList.remove('active');
+        });
+    }
+
+    async function performAdvancedSearch() {
+        const title = document.getElementById('searchTitle').value.trim();
+        const author = document.getElementById('searchAuthor').value.trim();
+        const narrator = document.getElementById('searchNarrator').value.trim();
+        
+        // Get selected filters
+        const activeFilters = [];
+        document.querySelectorAll('.section-item.active').forEach(item => {
+            activeFilters.push({
+                type: item.dataset.type,
+                key: item.dataset.key,
+                name: item.textContent.trim()
+            });
+        });
+        
+        // Build search query
+        let searchTerms = [];
+        if (title) searchTerms.push(`title:${title}`);
+        if (author) searchTerms.push(`author:${author}`);
+        if (narrator) searchTerms.push(`narrator:${narrator}`);
+        
+        // Add filter terms
+        activeFilters.forEach(filter => {
+            if (filter.type === 'search') {
+                searchTerms.push(filter.key);
+            } else {
+                searchTerms.push(`${filter.type}:${filter.key}`);
+            }
+        });
+        
+        if (searchTerms.length === 0) {
+            alert('Please enter search terms or select filters');
+            return;
+        }
+        
+        const searchQuery = searchTerms.join(' ');
+        console.log('Advanced search query:', searchQuery);
+        
+        // Perform the search
+        currentQuery = searchQuery;
+        currentPage = 1;
+        hasMore = true;
+        
+        const grid = document.getElementById('resultsGrid');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        
+        grid.style.display = 'none';
+        loadingSpinner.style.display = 'flex';
+        
+        try {
+            const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}&page=1`);
+            const data = await response.json();
+            
+            if (data.books && data.books.length > 0) {
+                grid.innerHTML = '';
+                data.books.forEach(book => {
+                    const bookCard = createBookCard(book);
+                    grid.appendChild(bookCard);
+                });
+                
+                hasMore = data.has_more || false;
+                grid.style.display = 'grid';
+                
+                // Update main search bar
+                document.querySelector('.search-bar').value = searchQuery;
+            } else {
+                grid.innerHTML = '<div class="no-results">No books found for your advanced search</div>';
+                grid.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Advanced search failed:', error);
+            grid.innerHTML = '<div class="error-message">Advanced search failed. Please try again.</div>';
+            grid.style.display = 'block';
+        } finally {
+            loadingSpinner.style.display = 'none';
+        }
     }
 </script>
 
