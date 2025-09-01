@@ -1,0 +1,9 @@
+flask==2.3.3
+flask-login==0.6.3
+beautifulsoup4==4.12.2
+requests==2.31.0
+qbittorrent-api==2023.9.52
+transmission-rpc==7.0.6
+deluge-web-client==1.0.2
+python-dotenv==1.0.0
+Werkzeug==2.3.7

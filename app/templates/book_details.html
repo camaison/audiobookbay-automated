@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}{{ book.title if book else 'Book Details' }} - AudiobookBay{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/book_details.css') }}">
+{% endblock %}
+
+{% block content %}
+{% if error %}
+    <div class="alert alert-error">
+        <span class="alert-icon">⚠️</span>
+        {{ error }}
+    </div>
+    <div class="back-link">
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">← Back to Home</a>
+    </div>
+{% elif book %}
+<div class="book-details">
+    <div class="book-header">
+        <div class="book-cover-large">
+            <img src="{{ book.cover }}" alt="Cover for {{ book.title }}" 
+                 onerror="this.src='/static/images/default_cover.jpg';">
+        </div>
+        
+        <div class="book-main-info">
+            <div class="book-breadcrumb">
+                <a href="{{ url_for('home') }}">Home</a> / Book Details
+            </div>
+            
+            <h1 class="book-title">{{ book.title }}</h1>
+            
+            {% if book.author %}
+            <p class="book-author">by {{ book.author }}</p>
+            {% endif %}
+            
+            {% if book.narrator %}
+            <p class="book-narrator">Narrated by {{ book.narrator }}</p>
+            {% endif %}
+            
+            <div class="book-actions">
+                <button class="btn btn-primary btn-large" onclick="downloadBook('{{ book.original_url|escape }}', '{{ book.title|escape }}')">
+                    📥 Download Audiobook
+                </button>
+                <button class="btn btn-outline favorite-btn" onclick="toggleFavorite('{{ book.original_url|escape }}', '{{ book.title|escape }}', '{{ book.author|escape }}', '{{ book.cover|escape }}', '{{ book.file_size|escape }}', this)">
+                    <span class="fav-icon">💙</span> <span class="fav-text">Favorite</span>
+                </button>
+                <a href="{{ book.original_url }}" target="_blank" class="btn btn-outline">
+                    🔗 View Original
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="book-content">
+        <div class="book-meta-grid">
+            <div class="meta-section">
+                <h3>Details</h3>
+                <div class="meta-items">
+                    {% if book.duration %}
+                    <div class="meta-item">
+                        <span class="meta-label">Duration:</span>
+                        <span class="meta-value">{{ book.duration }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if book.file_format %}
+                    <div class="meta-item">
+                        <span class="meta-label">Format:</span>
+                        <span class="meta-value">{{ book.file_format }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if book.file_size %}
+                    <div class="meta-item">
+                        <span class="meta-label">File Size:</span>
+                        <span class="meta-value">{{ book.file_size }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if book.bitrate %}
+                    <div class="meta-item">
+                        <span class="meta-label">Bitrate:</span>
+                        <span class="meta-value">{{ book.bitrate }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="meta-item">
+                        <span class="meta-label">Language:</span>
+                        <span class="meta-value">{{ book.language }}</span>
+                    </div>
+                    
+                    {% if book.categories %}
+                    <div class="meta-item">
+                        <span class="meta-label">Categories:</span>
+                        <div class="meta-categories">
+                            {% for category in book.categories %}
+                            <span class="category-tag">{{ category }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if book.posted_by %}
+                    <div class="meta-item">
+                        <span class="meta-label">Posted by:</span>
+                        <span class="meta-value">{{ book.posted_by }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        {% if book.description %}
+        <div class="book-description">
+            <h3>Description</h3>
+            <div class="description-content">
+                {{ book.description }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+function downloadBook(link, title) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '⏳ Processing...';
+    button.disabled = true;
+
+    fetch('/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link: link, title: title })
+    })
+    .then(response => response.json())
+    .then(data => {
+        showNotification(data.message, data.message.includes('successfully') ? 'success' : 'error');
+        if (data.message.includes('successfully')) {
+            // Redirect to downloads page after successful download
+            setTimeout(() => {
+                window.location.href = '{{ url_for("status") }}';
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        showNotification('Failed to add download: ' + error.message, 'error');
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+// Favorites functionality
+async function toggleFavorite(link, title, author, cover, fileSize, button) {
+    const favIcon = button.querySelector('.fav-icon');
+    const favText = button.querySelector('.fav-text');
+    const originalIcon = favIcon.textContent;
+    const originalText = favText.textContent;
+    
+    // Show loading state
+    favIcon.textContent = '⏳';
+    favText.textContent = 'Loading...';
+    button.disabled = true;
+    
+    try {
+        // Check if already favorite
+        const checkResponse = await fetch('/api/favorites/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: link })
+        });
+        const checkData = await checkResponse.json();
+        
+        if (checkData.is_favorite) {
+            // Remove from favorites
+            const response = await fetch('/api/favorites/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ link: link })
+            });
+            const data = await response.json();
+            
+            if (data.status === 'removed') {
+                favIcon.textContent = '💙';
+                favText.textContent = 'Favorite';
+                showNotification('Removed from favorites', 'success');
+            } else {
+                throw new Error('Failed to remove from favorites');
+            }
+        } else {
+            // Add to favorites
+            const response = await fetch('/api/favorites/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    link: link, 
+                    title: title, 
+                    author: author, 
+                    cover: cover, 
+                    file_size: fileSize 
+                })
+            });
+            const data = await response.json();
+            
+            if (data.status === 'added' || data.status === 'exists') {
+                favIcon.textContent = '❤️';
+                favText.textContent = 'Favorited';
+                showNotification(data.message, 'success');
+            } else {
+                throw new Error('Failed to add to favorites');
+            }
+        }
+    } catch (error) {
+        console.error('Error toggling favorite:', error);
+        favIcon.textContent = originalIcon;
+        favText.textContent = originalText;
+        showNotification('Error updating favorites', 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Remove any existing notifications
+    const existingNotification = document.querySelector('.notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+            <span class="notification-text">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+
+    // Add to page
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification && notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Check if this book is already favorited on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const favoriteBtn = document.querySelector('.favorite-btn');
+    if (favoriteBtn) {
+        const bookLink = "{{ book.original_url|escape }}";
+        checkAndUpdateFavoriteButton(bookLink, favoriteBtn);
+    }
+});
+
+async function checkAndUpdateFavoriteButton(link, button) {
+    try {
+        const response = await fetch('/api/favorites/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: link })
+        });
+        const data = await response.json();
+        
+        const favIcon = button.querySelector('.fav-icon');
+        const favText = button.querySelector('.fav-text');
+        
+        if (data.is_favorite) {
+            favIcon.textContent = '❤️';
+            favText.textContent = 'Favorited';
+        }
+    } catch (error) {
+        console.error('Error checking favorite status:', error);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,324 @@
+/* Status page specific styles */
+.status-container {
+    width: 100%;
+    max-width: 1000px;
+}
+
+/* Status table styling */
+.status-table-container {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px var(--shadow);
+    overflow: hidden;
+    margin-top: 24px;
+}
+
+.status-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+.status-table thead {
+    background-color: var(--bg-secondary);
+}
+
+.status-table th {
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-primary);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-table td {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.status-table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.status-table tbody tr:hover {
+    background-color: var(--bg-secondary);
+}
+
+.status-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Torrent name styling */
+.torrent-name {
+    color: var(--text-primary);
+    font-weight: 500;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+/* Progress bar */
+.progress-container {
+    position: relative;
+    width: 100%;
+    max-width: 120px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
+    border-radius: 20px;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+}
+
+.progress-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.status-downloading {
+    background: rgba(76, 175, 80, 0.2);
+    color: #81c784;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.status-seeding {
+    background: rgba(33, 150, 243, 0.2);
+    color: #64b5f6;
+    border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.status-paused {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffb74d;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.status-completed {
+    background: rgba(76, 175, 80, 0.2);
+    color: #81c784;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.status-error {
+    background: rgba(244, 67, 54, 0.2);
+    color: #ef5350;
+    border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+/* File size styling */
+.file-size {
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.empty-state p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* Refresh button */
+.refresh-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.refresh-button {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    color: var(--text-primary);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.refresh-button:hover {
+    background: var(--bg-glass-hover);
+    transform: translateY(-1px);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .status-container {
+        padding: 0 10px;
+    }
+
+    .status-table-container {
+        margin-top: 20px;
+        border-radius: 15px;
+    }
+
+    .status-table {
+        font-size: 0.85rem;
+    }
+
+    .status-table th,
+    .status-table td {
+        padding: 12px 8px;
+    }
+
+    .status-table th {
+        font-size: 0.8rem;
+    }
+
+    .torrent-name {
+        max-width: 150px;
+    }
+
+    .progress-container {
+        max-width: 80px;
+    }
+
+    .progress-text {
+        font-size: 0.75rem;
+    }
+
+    .status-badge {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+
+    /* Stack table columns on very small screens */
+    @media (max-width: 480px) {
+        .status-table thead {
+            display: none;
+        }
+
+        .status-table,
+        .status-table tbody,
+        .status-table tr,
+        .status-table td {
+            display: block;
+        }
+
+        .status-table tr {
+            background: var(--bg-glass);
+            margin-bottom: 15px;
+            border-radius: 15px;
+            padding: 15px;
+            border: 1px solid var(--border-glass);
+        }
+
+        .status-table td {
+            border: none;
+            padding: 8px 0;
+            position: relative;
+            padding-left: 40%;
+        }
+
+        .status-table td:before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            top: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .torrent-name {
+            max-width: none;
+            font-size: 0.9rem;
+        }
+
+        .progress-container {
+            max-width: none;
+        }
+    }
+}
+
+/* Auto-refresh indicator */
+.auto-refresh-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--border-glass);
+    border-radius: 25px;
+    padding: 10px 16px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: none;
+    align-items: center;
+    gap: 8px;
+}
+
+.auto-refresh-indicator.active {
+    display: flex;
+}
+
+.refresh-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border-glass);
+    border-top: 2px solid var(--accent-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

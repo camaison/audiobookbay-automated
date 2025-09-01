@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}My Favorites{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <div class="page-header">
+        <h1 class="page-title">My Favorites</h1>
+        <p class="page-subtitle">Your saved audiobooks collection</p>
+    </div>
+</div>
+
+<div id="results-container">
+    {% if error %}
+    <div class="error-message">{{ error }}</div>
+    {% elif books %}
+    <div class="books-grid" id="booksGrid">
+        {% for book in books %}
+        <article class="book-item">
+            <div class="book-cover" onclick="goToDetails('{{ url_for('book_details', book_url=book.link|urlencode) }}')">
+                <img src="{{ book.cover }}" alt="Cover for {{ book.title }}" 
+                     onerror="this.src='/static/images/default_cover.jpg';">
+            </div>
+            <div class="book-info">
+                <h3 class="book-title" onclick="goToDetails('{{ url_for('book_details', book_url=book.link|urlencode) }}')">{{ book.title }}</h3>
+                {% if book.author %}
+                <p class="book-author">by {{ book.author }}</p>
+                {% endif %}
+                <div class="book-meta">
+                    {% if book.file_size %}
+                    <span class="meta-tag">{{ book.file_size }}</span>
+                    {% endif %}
+                </div>
+                <div class="book-actions">
+                    <button class="book-btn remove-favorite" onclick="removeFavorite('{{ book.link|escape }}', this)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M10 11V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M14 11V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Remove
+                    </button>
+                    <button class="book-btn secondary" onclick="quickDownload('{{ book.link|escape }}', '{{ book.title|escape }}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Download
+                    </button>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+        </div>
+        <h3>No favorite books yet</h3>
+        <p>Start searching and add books to your favorites!</p>
+        <a href="{{ url_for('search') }}" class="book-btn primary" style="margin-top: 20px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Start Searching
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function removeFavorite(link, button) {
+    // Show loading state
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span>⏳</span> Removing...';
+    button.disabled = true;
+    
+    fetch('/api/favorites/remove', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ link: link })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'removed') {
+            // Remove the book card from the page
+            const bookCard = button.closest('.book-item');
+            bookCard.style.opacity = '0';
+            bookCard.style.transform = 'translateY(-20px)';
+            setTimeout(() => {
+                bookCard.remove();
+                
+                // Check if no more books
+                const remainingBooks = document.querySelectorAll('.book-item').length;
+                if (remainingBooks === 0) {
+                    location.reload();
+                }
+            }, 300);
+            
+            showNotification('Removed from favorites', 'success');
+        } else {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            showNotification('Failed to remove from favorites', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error removing favorite:', error);
+        button.innerHTML = originalText;
+        button.disabled = false;
+        showNotification('Error removing favorite', 'error');
+    });
+}
+
+function goToDetails(url) {
+    window.location.href = url;
+}
+
+async function quickDownload(link, title) {
+    const button = event.target.closest('.book-btn');
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<span>⏳</span> Adding...';
+    button.disabled = true;
+
+    try {
+        const response = await fetch('/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: link, title: title })
+        });
+        const data = await response.json();
+        
+        showNotification(data.message, data.message.includes('successfully') ? 'success' : 'error');
+        if (data.message.includes('successfully')) {
+            button.innerHTML = '<span>✅</span> Added';
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }, 2000);
+        } else {
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
+    } catch (error) {
+        showNotification('Failed to add download: ' + error.message, 'error');
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const existingNotification = document.querySelector('.notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+            <span class="notification-text">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        if (notification && notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

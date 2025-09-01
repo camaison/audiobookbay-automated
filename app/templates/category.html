@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category_name }} Audiobooks{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <div class="page-header">
+        <h1 class="page-title">{{ category_name }} Audiobooks</h1>
+        <p class="page-subtitle">Discover amazing {{ category_name.lower() }} audiobooks</p>
+    </div>
+    
+</div>
+
+<div id="results-container">
+    {% if error %}
+    <div class="error-message">{{ error }}</div>
+    {% elif books %}
+    <div class="books-grid" id="booksGrid">
+        {% for book in books %}
+        <article class="book-item">
+            <div class="book-cover" onclick="goToDetails('{{ url_for('book_details', book_url=book.link|urlencode) }}')">
+                <img src="{{ book.cover }}" alt="Cover for {{ book.title }}" 
+                     onerror="this.src='/static/images/default_cover.jpg';">
+            </div>
+            <div class="book-info">
+                <h3 class="book-title" onclick="goToDetails('{{ url_for('book_details', book_url=book.link|urlencode) }}')">{{ book.title }}</h3>
+                {% if book.author %}
+                <p class="book-author">by {{ book.author }}</p>
+                {% endif %}
+                <div class="book-meta">
+                    {% if book.file_size %}
+                    <span class="meta-tag">{{ book.file_size }}</span>
+                    {% endif %}
+                </div>
+                <div class="book-actions">
+                    <button class="book-btn favorite" onclick="addToFavorites('{{ book.link|escape }}', '{{ book.title|escape }}', '{{ book.author|escape }}', '{{ book.cover|escape }}', '{{ book.file_size|escape }}', this)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Favorite
+                    </button>
+                    <button class="book-btn secondary" onclick="quickDownload('{{ book.link|escape }}', '{{ book.title|escape }}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Download
+                    </button>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 3H8C9.06087 3 10.0783 3.42143 10.8284 4.17157C11.5786 4.92172 12 5.93913 12 7V21C12 20.2044 11.6839 19.4413 11.1213 18.8787C10.5587 18.3161 9.79565 18 9 18H2V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M22 3H16C14.9391 3 13.9217 3.42143 13.1716 4.17157C12.4214 4.92172 12 5.93913 12 7V21C12 20.2044 12.3161 19.4413 12.8787 18.8787C13.4413 18.3161 14.2044 18 15 18H22V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <h3>No {{ category_name.lower() }} books found</h3>
+        <p>Try browsing a different category</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Infinite loading indicator -->
+<div class="infinite-loading" id="infiniteLoading" style="display: none;">
+    <div class="loading-content" style="text-align: center;">
+        <div class="loading-message" id="loadingMessage">Searching for more {{ category_name.lower() }} books...</div>
+        <div class="loading-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- End of results indicator -->
+<div class="end-of-results" id="endOfResults" style="display: none;">
+    <div class="end-message">
+        <p>That's all the {{ category_name.lower() }} books we found!</p>
+        <p class="end-subtitle">Try exploring another category for more audiobooks</p>
+    </div>
+</div>
+
+<script>
+let isLoading = false;
+let hasMoreResults = true;
+let currentPage = 1;
+const category = "{{ category }}";
+
+const funnyMessages = [
+    `Searching for more {{ category_name.lower() }} treasures...`,
+    `My book-detecting sensors are working overtime!`,
+    `Digging through the {{ category_name.lower() }} archives...`,
+    `Almost there! These {{ category_name.lower() }} books won't find themselves!`,
+    `Loading more {{ category_name.lower() }} magic...`,
+    `Scanning the literary universe for {{ category_name.lower() }} gems...`,
+    `My algorithms are having a field day with these {{ category_name.lower() }} books!`,
+    `Patience! Good {{ category_name.lower() }} books are worth the wait!`,
+    `The {{ category_name.lower() }} book vault is being unlocked...`,
+    `My circuits are buzzing with {{ category_name.lower() }} excitement!`,
+    `Calibrating the {{ category_name.lower() }} discovery engine...`,
+    `The digital librarians are organizing {{ category_name.lower() }} masterpieces...`,
+    `Summoning {{ category_name.lower() }} books from the cloud dimension...`,
+    `My neural networks are discussing {{ category_name.lower() }} plot twists...`,
+    `The {{ category_name.lower() }} search expedition continues...`,
+    `Teaching my processors the art of {{ category_name.lower() }} appreciation...`,
+    `The {{ category_name.lower() }} treasure map is being decoded...`,
+    `My hard drives are spinning tales of {{ category_name.lower() }} discovery...`,
+    `Consulting the ancient {{ category_name.lower() }} scrolls...`,
+    `The {{ category_name.lower() }} matrix is revealing its secrets...`,
+    `My algorithms are having {{ category_name.lower() }} revelations...`,
+    `The cosmic {{ category_name.lower() }} catalog is being accessed...`,
+    `Searching through dimensions of {{ category_name.lower() }} storytelling...`,
+    `The binary code whispers of hidden {{ category_name.lower() }} gems...`,
+    `My search spells are attuned to {{ category_name.lower() }} frequencies...`,
+    `The {{ category_name.lower() }} multiverse is vast but we'll explore it all...`,
+    `Teaching electrons to carry {{ category_name.lower() }} data faster...`,
+    `The {{ category_name.lower() }} archive guardians are being consulted...`,
+    `My processors are working overtime for {{ category_name.lower() }} excellence...`,
+    `The digital {{ category_name.lower() }} constellation is aligning...`
+];
+
+function getRandomMessage() {
+    return funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
+}
+
+function updateProgress() {
+    const progressFill = document.getElementById('progressFill');
+    let width = 0;
+    const interval = setInterval(() => {
+        width += Math.random() * 15 + 5;
+        if (width >= 95) {
+            width = 95;
+            clearInterval(interval);
+        }
+        progressFill.style.width = width + '%';
+    }, 200);
+}
+
+function loadMoreBooks() {
+    if (isLoading || !hasMoreResults) return;
+    
+    isLoading = true;
+    const infiniteLoading = document.getElementById('infiniteLoading');
+    const loadingMessage = document.getElementById('loadingMessage');
+    const progressFill = document.getElementById('progressFill');
+    
+    // Show loading indicator
+    infiniteLoading.style.display = 'flex';
+    loadingMessage.textContent = getRandomMessage();
+    progressFill.style.width = '0%';
+    updateProgress();
+    
+    const nextPage = currentPage + 1;
+    
+    fetch(`/api/browse/${category}?page=${nextPage}`)
+        .then(response => response.json())
+        .then(data => {
+            infiniteLoading.style.display = 'none';
+            
+            if (data.error) {
+                console.error('Error loading more books:', data.error);
+                hasMoreResults = false;
+                document.getElementById('endOfResults').style.display = 'flex';
+                return;
+            }
+            
+            if (data.books && data.books.length > 0) {
+                const booksGrid = document.getElementById('booksGrid');
+                
+                data.books.forEach(book => {
+                    const bookItem = createBookCard(book);
+                    booksGrid.appendChild(bookItem);
+                });
+                
+                currentPage = nextPage;
+                hasMoreResults = data.has_more;
+            } else {
+                hasMoreResults = false;
+                document.getElementById('endOfResults').style.display = 'flex';
+            }
+            
+            isLoading = false;
+        })
+        .catch(error => {
+            console.error('Error loading more books:', error);
+            infiniteLoading.style.display = 'none';
+            hasMoreResults = false;
+            document.getElementById('endOfResults').style.display = 'flex';
+            isLoading = false;
+        });
+}
+
+function createBookCard(book) {
+    const bookItem = document.createElement('article');
+    bookItem.className = 'book-item';
+    bookItem.innerHTML = `
+        <div class="book-cover" onclick="goToDetails('/book/${encodeURIComponent(book.link)}')">
+            <img src="${book.cover}" alt="Cover for ${book.title}" 
+                 onerror="this.src='/static/images/default_cover.jpg';">
+        </div>
+        <div class="book-info">
+            <h3 class="book-title" onclick="goToDetails('/book/${encodeURIComponent(book.link)}')">${book.title}</h3>
+            ${book.author ? `<p class="book-author">by ${book.author}</p>` : ''}
+            <div class="book-meta">
+                ${book.file_size ? `<span class="meta-tag">${book.file_size}</span>` : ''}
+            </div>
+            <div class="book-actions">
+                <button class="book-btn favorite" onclick="addToFavorites('${book.link}', '${book.title}', '${book.author || ''}', '${book.cover}', '${book.file_size || ''}', this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Favorite
+                </button>
+                <button class="book-btn secondary" onclick="quickDownload('${book.link}', '${book.title}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Download
+                </button>
+            </div>
+        </div>
+    `;
+    return bookItem;
+}
+
+function goToDetails(url) {
+    window.location.href = url;
+}
+
+async function addToFavorites(link, title, author, cover, fileSize, button) {
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<span>⏳</span> Adding...';
+    button.disabled = true;
+    
+    try {
+        const response = await fetch('/api/favorites/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                link: link, 
+                title: title, 
+                author: author, 
+                cover: cover, 
+                file_size: fileSize 
+            })
+        });
+        const data = await response.json();
+        
+        if (data.status === 'added' || data.status === 'exists') {
+            button.innerHTML = '<span>❤️</span> Favorited';
+            showNotification(data.message, 'success');
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }, 2000);
+        } else {
+            throw new Error('Failed to add to favorites');
+        }
+    } catch (error) {
+        console.error('Error adding to favorites:', error);
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+        showNotification('Error adding to favorites', 'error');
+    }
+}
+
+function quickDownload(link, title) {
+    const button = event.target.closest('.book-btn');
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<span>⏳</span> Adding...';
+    button.disabled = true;
+
+    fetch('/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link: link, title: title })
+    })
+    .then(response => response.json())
+    .then(data => {
+        showNotification(data.message, data.message.includes('successfully') ? 'success' : 'error');
+        if (data.message.includes('successfully')) {
+            button.innerHTML = '<span>✅</span> Added';
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }, 2000);
+        } else {
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        showNotification('Failed to add download: ' + error.message, 'error');
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    });
+}
+
+function showNotification(message, type = 'info') {
+    const existingNotification = document.querySelector('.notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+            <span class="notification-text">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        if (notification && notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Infinite scroll functionality
+function handleScroll() {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000) {
+        loadMoreBooks();
+    }
+}
+
+// Initialize infinite scroll
+window.addEventListener('scroll', handleScroll);
+
+// Set has_more based on initial results
+{% if books %}
+hasMoreResults = {{ books|length }} > 0;
+{% else %}
+hasMoreResults = false;
+{% endif %}
+</script>
+{% endblock %}

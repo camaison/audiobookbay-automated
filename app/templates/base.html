@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AudiobookBay{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h2>AudiobookBay</h2>
+            </div>
+            
+            <!-- Navigation Links -->
+            <div class="nav-links" id="navLinks">
+                <a href="{{ url_for('home') }}" class="nav-link {% if request.endpoint == 'home' %}active{% endif %}">
+                    Home
+                </a>
+                <a href="{{ url_for('search') }}" class="nav-link {% if request.endpoint == 'search' %}active{% endif %}">
+                    Search
+                </a>
+                
+                <!-- Categories Dropdown -->
+                <div class="nav-dropdown">
+                    <a href="#" class="nav-link dropdown-toggle {% if request.endpoint == 'browse_by_category' %}active{% endif %}" onclick="toggleDropdown(event)">
+                        Categories <span class="dropdown-arrow">▼</span>
+                    </a>
+                    <div class="dropdown-menu" id="categoriesDropdown">
+                        <a href="{{ url_for('browse_by_category', category='fantasy') }}" class="dropdown-item">Fantasy</a>
+                        <a href="{{ url_for('browse_by_category', category='mystery') }}" class="dropdown-item">Mystery</a>
+                        <a href="{{ url_for('browse_by_category', category='romance') }}" class="dropdown-item">Romance</a>
+                        <a href="{{ url_for('browse_by_category', category='science-fiction') }}" class="dropdown-item">Sci-Fi</a>
+                        <a href="{{ url_for('browse_by_category', category='thriller') }}" class="dropdown-item">Thriller</a>
+                        <a href="{{ url_for('browse_by_category', category='biography') }}" class="dropdown-item">Biography</a>
+                        <a href="{{ url_for('browse_by_category', category='history') }}" class="dropdown-item">History</a>
+                        <a href="{{ url_for('browse_by_category', category='self-help') }}" class="dropdown-item">Self Help</a>
+                        <a href="{{ url_for('browse_by_category', category='business') }}" class="dropdown-item">Business</a>
+                        <a href="{{ url_for('browse_by_category', category='classic') }}" class="dropdown-item">Classic</a>
+                        <a href="{{ url_for('browse_by_category', category='young-adult') }}" class="dropdown-item">Young Adult</a>
+                        <a href="{{ url_for('browse_by_category', category='children') }}" class="dropdown-item">Children</a>
+                    </div>
+                </div>
+                
+                <a href="{{ url_for('status') }}" class="nav-link {% if request.endpoint == 'status' %}active{% endif %}">
+                    Downloads
+                </a>
+                <a href="{{ url_for('favorites_page') }}" class="nav-link {% if request.endpoint == 'favorites_page' %}active{% endif %}">
+                    Favorites
+                </a>
+                {% if nav_link_name and nav_link_url %}
+                <a href="{{ nav_link_url }}" target="_blank" class="nav-link">
+                    {{ nav_link_name }}
+                </a>
+                {% endif %}
+            </div>
+
+            <div class="theme-toggle-container">
+                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                    <span id="themeIcon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                </button>
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+                    ☰
+                </button>
+                <a href="{{ url_for('logout') }}" class="nav-link">
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- Page Content -->
+    <main class="content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script>
+        // Theme management
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+            const currentTheme = html.getAttribute('data-theme');
+            
+            if (currentTheme === 'dark') {
+                html.setAttribute('data-theme', 'light');
+                themeIcon.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                `;
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                themeIcon.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 1v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M12 21v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M4.22 4.22l1.42 1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M18.36 18.36l1.42 1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M1 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M21 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M4.22 19.78l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                `;
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Load saved theme
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            const themeIcon = document.getElementById('themeIcon');
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            themeIcon.innerHTML = savedTheme === 'dark' ? `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 1v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M12 21v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M4.22 4.22l1.42 1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M18.36 18.36l1.42 1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M1 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M21 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M4.22 19.78l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            ` : `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            `;
+        }
+
+        // Mobile menu
+        function toggleMobileMenu() {
+            const navLinks = document.getElementById('navLinks');
+            navLinks.classList.toggle('mobile-open');
+        }
+
+        // Categories dropdown
+        function toggleDropdown(event) {
+            event.preventDefault();
+            const dropdown = document.getElementById('categoriesDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Close mobile menu and dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const navLinks = document.getElementById('navLinks');
+            const menuBtn = document.querySelector('.mobile-menu-btn');
+            const dropdown = document.getElementById('categoriesDropdown');
+            const dropdownToggle = document.querySelector('.dropdown-toggle');
+            
+            if (!navLinks.contains(event.target) && !menuBtn.contains(event.target)) {
+                navLinks.classList.remove('mobile-open');
+            }
+            
+            if (!dropdown.contains(event.target) && !dropdownToggle.contains(event.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', loadTheme);
+    </script>
+</body>
+</html>

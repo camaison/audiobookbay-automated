@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Torrent Status{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/status.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="status-container">
+    <div class="page-header">
+        <h1 class="page-title">Download Status</h1>
+        <p class="page-subtitle">Monitor your active downloads and completed audiobooks</p>
+    </div>
+
+    <div class="refresh-container">
+        <button class="btn btn-secondary" onclick="location.reload()">
+            Refresh Status
+        </button>
+    </div>
+
+    {% if torrents %}
+    <div class="status-table-container">
+        <table class="status-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Progress</th>
+                    <th>Status</th>
+                    <th>Size</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for torrent in torrents %}
+                <tr>
+                    <td data-label="Title">
+                        <span class="torrent-name" title="{{ torrent.name }}">{{ torrent.name }}</span>
+                    </td>
+                    <td data-label="Progress">
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: {{ torrent.progress }}%"></div>
+                            </div>
+                            <div class="progress-text">{{ torrent.progress }}%</div>
+                        </div>
+                    </td>
+                    <td data-label="Status">
+                        <span class="status-badge {% if torrent.state|lower == 'downloading' %}status-downloading{% elif torrent.state|lower == 'seeding' %}status-seeding{% elif torrent.state|lower == 'paused' %}status-paused{% elif torrent.state|lower == 'completed' %}status-completed{% else %}status-error{% endif %}">
+                            {{ torrent.state }}
+                        </span>
+                    </td>
+                    <td data-label="Size">
+                        <span class="file-size">{{ torrent.size }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📥</div>
+        <h3>No Active Downloads</h3>
+        <p>Start downloading audiobooks from the search page to see them here.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Auto-refresh indicator -->
+<div class="auto-refresh-indicator" id="autoRefreshIndicator">
+    <div class="refresh-spinner"></div>
+    <span>Auto-refreshing...</span>
+</div>
+
+<script>
+    // Auto-refresh every 30 seconds
+    setInterval(function() {
+        const indicator = document.getElementById('autoRefreshIndicator');
+        indicator.classList.add('active');
+        
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    }, 30000);
+
+    // Status badge color mapping
+    function getStatusClass(state) {
+        const stateMap = {
+            'downloading': 'status-downloading',
+            'seeding': 'status-seeding',
+            'paused': 'status-paused',
+            'completed': 'status-completed',
+            'error': 'status-error'
+        };
+        return stateMap[state.toLowerCase()] || 'status-error';
+    }
+</script>
+{% endblock %}

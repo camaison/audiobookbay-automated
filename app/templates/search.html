@@ -1,0 +1,954 @@
+{% extends "base.html" %}
+
+{% block title %}Search{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title">Search Audiobooks</h1>
+    <p class="page-subtitle">Find and download audiobooks from AudiobookBay</p>
+</div>
+
+<div class="search-container">
+    <form method="post" class="search-form" onsubmit="showLoadingSpinner()">
+        <input type="text" name="query" placeholder="Search for audiobooks..." class="search-bar" value="{{ query or '' }}" required>
+        <button type="submit" class="search-button">
+            <span class="button-text">Search</span>
+            <div class="button-spinner" id="button-spinner" style="display: none;">
+                <div class="spinner"></div>
+            </div>
+        </button>
+    </form>
+    
+    <!-- Advanced Search Toggle -->
+    <div class="search-filters">
+        <button type="button" class="filter-toggle" onclick="toggleFilters()">
+            <span id="filterIcon">🔽</span>
+            <span>Advanced Search</span>
+        </button>
+    </div>
+    
+    <!-- Advanced Search Panel -->
+    <div class="advanced-search" id="advancedSearch" style="display: none;">
+        <div class="filter-section">
+            <h4>Popular Categories</h4>
+            <div class="filter-chips">
+                <button type="button" class="filter-chip" data-filter="fantasy">Fantasy</button>
+                <button type="button" class="filter-chip" data-filter="mystery">Mystery</button>
+                <button type="button" class="filter-chip" data-filter="romance">Romance</button>
+                <button type="button" class="filter-chip" data-filter="thriller">Thriller</button>
+                <button type="button" class="filter-chip" data-filter="science fiction">Sci-Fi</button>
+                <button type="button" class="filter-chip" data-filter="biography">Biography</button>
+                <button type="button" class="filter-chip" data-filter="self-help">Self-Help</button>
+                <button type="button" class="filter-chip" data-filter="business">Business</button>
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <h4>Quick Filters</h4>
+            <div class="filter-chips">
+                <button type="button" class="filter-chip" data-filter="bestseller">Bestsellers</button>
+                <button type="button" class="filter-chip" data-filter="new">New Releases</button>
+                <button type="button" class="filter-chip" data-filter="series">Book Series</button>
+                <button type="button" class="filter-chip" data-filter="award">Award Winners</button>
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <h4>Recent Searches</h4>
+            <div class="filter-chips" id="searchHistory">
+                <div class="loading-history">Loading search history...</div>
+            </div>
+        </div>
+        
+        <div class="filter-actions">
+            <button type="button" class="btn btn-secondary" onclick="clearFilters()">Clear All</button>
+            <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+        </div>
+    </div>
+</div>
+
+<div class="message-scroller" id="message-scroller">
+    <p id="scrolling-message"></p>
+</div>
+
+<div class="loading-spinner" id="loading-spinner">
+    <div class="spinner"></div>
+    <p>Searching for audiobooks...</p>
+</div>
+
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+
+<!-- Search Results Container -->
+<div class="books-grid" id="resultsGrid" style="display: none;">
+    {% if books %}
+    {% for book in books %}
+    <article class="book-item">
+        <div class="book-cover" onclick="goToDetails('{{ url_for('book_details', book_url=book.link|urlencode) }}')">
+            <img src="{{ book.cover }}" alt="Cover for {{ book.title }}" 
+                 onerror="this.src='/static/images/default_cover.jpg';">
+        </div>
+        <div class="book-info">
+            <h3 class="book-title" onclick="goToDetails('{{ url_for('book_details', book_url=book.link|urlencode) }}')">{{ book.title }}</h3>
+            {% if book.author %}
+            <p class="book-author">by {{ book.author }}</p>
+            {% endif %}
+            <div class="book-meta">
+                {% if book.file_size %}
+                <span class="meta-tag">{{ book.file_size }}</span>
+                {% endif %}
+            </div>
+            <div class="book-actions">
+                <button class="book-btn favorite" onclick="addToFavorites('{{ book.link|escape }}', '{{ book.title|escape }}', '{{ book.author|escape }}', '{{ book.cover|escape }}', '{{ book.file_size|escape }}', this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Favorite
+                </button>
+                <button class="book-btn secondary" onclick="quickDownload('{{ book.link|escape }}', '{{ book.title|escape }}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Download
+                </button>
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Infinite Scroll Loading -->
+<div class="infinite-loading" id="infiniteLoading" style="display: none;">
+    <div class="loading-content">
+        <div class="loading-message" id="loadingMessage">Loading more audiobooks...</div>
+        <div class="loading-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="loadingProgress"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- End of Results Indicator -->
+<div class="end-of-results" id="endOfResults" style="display: none;">
+    <div class="end-message">
+        <p>That's all folks! No more audiobooks to show.</p>
+        <p class="end-subtitle">Try a different search term to find more books</p>
+    </div>
+</div>
+
+<!-- Keep the old table hidden as fallback -->
+<table style="display: none;">
+    <tbody>
+        {% for book in books %}
+        <tr>
+            <td><img src="{{ book.cover }}" alt="Cover Art" class="cover" width="100"></td>
+            <td>{{ book.title }}</td>
+            <td> 
+                <button onclick="window.open('{{ book.link }}', '_blank')">Details</button>
+                <button onclick="sendToQB('{{ book.link|escape }}', '{{ book.title|escape }}')">Download to Server</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+    // Global search state
+    let currentQuery = '';
+    let currentPage = 1;
+    let isLoading = false;
+    let hasMore = true;
+    let messageInterval;
+    let progressInterval;
+    let activeFilters = [];
+    let filtersVisible = false;
+
+    // Funny loading messages
+    const messages = [
+        "Searching for audiobooks...",
+        "Hold on, this takes a while...",
+        "Still searching... Maybe grab a snack?",
+        "Patience, young grasshopper...",
+        "Wow, this is taking a minute!",
+        "Don't worry, I got this!",
+        "Maybe go for a walk?",
+        "Still thinking... Almost there!",
+        "Finding the best results for you!",
+        "Hang tight! Searching magic happening!",
+        "One moment... while I consult the ancients.",
+        "Beep boop... processing... please wait...",
+        "My hamsters are running on a wheel, almost there!",
+        "Just gathering some pixie dust, be right back!",
+        "Is it lunchtime yet? Oh, searching... right.",
+        "Please remain calm, the search is in progress.",
+        "Warning: Search may cause extreme awesomeness.",
+        "Calculating the optimal route to your results...",
+        "Almost there... just defragmenting my brain.",
+        "Searching... because the internet is a big place!",
+        "Polishing the search results for your viewing pleasure.",
+        "The search is strong with this one.",
+        "Please wait while I summon the search demons.",
+        "Searching in hyperspace... almost there!",
+        "My coffee is kicking in... search commencing!",
+        "Just a few more gigabytes to process...",
+        "Rome wasn't built in a day.",
+        "Don't blame me, the internet is slow today.",
+        "Almost there... just need to find the right key...",
+        "Diving deep into the audiobook ocean...",
+        "Consulting the audiobook gods...",
+        "Loading more literary goodness...",
+        "Fetching fresh audiobook treasures...",
+        "Calibrating the book-finding sensors...",
+        "Asking the library spirits for guidance...",
+        "Untangling the web of literary wisdom...",
+        "Searching through the archives of awesomeness...",
+        "The digital librarians are hard at work...",
+        "Summoning books from the cloud dimension...",
+        "Brewing the perfect search algorithm...",
+        "Teaching my algorithms to speed read...",
+        "Convincing the servers to work overtime...",
+        "Searching with the intensity of a thousand bookworms...",
+        "Organizing the chaos of the internet for you...",
+        "My search spells are almost ready...",
+        "Translating binary into book magic...",
+        "The audiobook universe is vast, but we'll find it...",
+        "Computing the probability of literary satisfaction...",
+        "Searching through dimensions of storytelling...",
+        "My neural networks are having book club discussions...",
+        "Downloading wisdom from the cloud library...",
+        "Teaching electrons to carry audiobook data faster...",
+        "The search continues... greatness takes time!",
+        "Polishing each result until it sparkles...",
+        "My circuits are humming with anticipation...",
+        "Scanning the literary multiverse...",
+        "The audiobook matrix is being decoded...",
+        "Searching with the passion of a book lover...",
+        "Converting caffeine into search algorithms...",
+        "The digital dust is settling on your results...",
+        "My processors are working up a sweat...",
+        "Channeling the spirits of great authors...",
+        "The search robots are doing their happy dance...",
+        "Consulting the ancient scrolls of the internet...",
+        "My hard drives are spinning tales of discovery...",
+        "The binary code is whispering secrets...",
+        "Searching through the cosmic library catalog...",
+        "My algorithms are having an eureka moment...",
+        "The search journey continues through cyberspace...",
+        "Teaching my servers the art of patience...",
+        "The audiobook treasure hunt is in progress..."
+    ];
+
+    function showLoadingSpinner() {
+        const buttonSpinner = document.getElementById('button-spinner');
+        buttonSpinner.style.display = 'inline-block';
+        setTimeout(showScrollingMessages, 2000);
+    }
+
+    function hideLoadingSpinner() {
+        const buttonSpinner = document.getElementById('button-spinner');
+        buttonSpinner.style.display = 'none';
+        hideScrollingMessages();
+    }
+
+    function showScrollingMessages() {
+        const messageScroller = document.getElementById('message-scroller');
+        const scrollingMessage = document.getElementById('scrolling-message');
+        
+        if (!messageScroller || !scrollingMessage) return;
+        
+        messageScroller.style.display = 'block';
+        let messageIndex = 0;
+        const shuffledMessages = [...messages].sort(() => Math.random() - 0.5);
+        
+        scrollingMessage.textContent = shuffledMessages[messageIndex];
+        
+        messageInterval = setInterval(() => {
+            messageIndex = (messageIndex + 1) % shuffledMessages.length;
+            scrollingMessage.textContent = shuffledMessages[messageIndex];
+        }, 3000);
+    }
+
+    function hideScrollingMessages() {
+        const messageScroller = document.getElementById('message-scroller');
+        if (messageScroller) {
+            messageScroller.style.display = 'none';
+        }
+        if (messageInterval) {
+            clearInterval(messageInterval);
+        }
+    }
+
+    // Infinite scrolling functionality
+    function showInfiniteLoading() {
+        const loading = document.getElementById('infiniteLoading');
+        const messageEl = document.getElementById('loadingMessage');
+        const progressEl = document.getElementById('loadingProgress');
+        
+        if (!loading) return;
+        
+        loading.style.display = 'flex';
+        
+        // Cycle through funny messages
+        let messageIndex = 0;
+        const shuffledMessages = [...messages].sort(() => Math.random() - 0.5);
+        messageEl.textContent = shuffledMessages[messageIndex];
+        
+        messageInterval = setInterval(() => {
+            messageIndex = (messageIndex + 1) % shuffledMessages.length;
+            messageEl.textContent = shuffledMessages[messageIndex];
+        }, 2500);
+        
+        // Animate progress bar
+        let progress = 0;
+        progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            progressEl.style.width = progress + '%';
+        }, 200);
+    }
+
+    function hideInfiniteLoading() {
+        const loading = document.getElementById('infiniteLoading');
+        if (loading) {
+            loading.style.display = 'none';
+        }
+        if (messageInterval) {
+            clearInterval(messageInterval);
+        }
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+        
+        const progressEl = document.getElementById('loadingProgress');
+        if (progressEl) {
+            progressEl.style.width = '0%';
+        }
+    }
+
+    function showEndOfResults() {
+        const endEl = document.getElementById('endOfResults');
+        if (endEl) {
+            endEl.style.display = 'flex';
+        }
+    }
+
+    function hideEndOfResults() {
+        const endEl = document.getElementById('endOfResults');
+        if (endEl) {
+            endEl.style.display = 'none';
+        }
+    }
+
+    // Load more results
+    async function loadMoreResults() {
+        if (isLoading || !hasMore || !currentQuery) return;
+        
+        isLoading = true;
+        showInfiniteLoading();
+        
+        try {
+            const response = await fetch(`/api/search?q=${encodeURIComponent(currentQuery)}&page=${currentPage + 1}`);
+            const data = await response.json();
+            
+            if (data.books && data.books.length > 0) {
+                currentPage++;
+                appendResults(data.books);
+                hasMore = data.has_more;
+            } else {
+                hasMore = false;
+            }
+            
+            if (!hasMore) {
+                showEndOfResults();
+            }
+        } catch (error) {
+            console.error('Failed to load more results:', error);
+            showNotification('Failed to load more results', 'error');
+        } finally {
+            isLoading = false;
+            hideInfiniteLoading();
+        }
+    }
+
+    function appendResults(books) {
+        const grid = document.getElementById('resultsGrid');
+        if (!grid) return;
+        
+        books.forEach(book => {
+            const bookCard = createBookCard(book);
+            grid.appendChild(bookCard);
+        });
+    }
+
+    function createBookCard(book) {
+        const card = document.createElement('article');
+        card.className = 'book-item';
+        
+        card.innerHTML = `
+            <div class="book-cover" onclick="goToDetails('/book/${encodeURIComponent(book.link)}')">
+                <img src="${book.cover}" alt="Cover for ${book.title}" 
+                     onerror="this.src='/static/images/default_cover.jpg';">
+            </div>
+            <div class="book-info">
+                <h3 class="book-title" onclick="goToDetails('/book/${encodeURIComponent(book.link)}')">${book.title}</h3>
+                ${book.author ? `<p class="book-author">by ${book.author}</p>` : ''}
+                <div class="book-meta">
+                    ${book.file_size ? `<span class="meta-tag">${book.file_size}</span>` : ''}
+                </div>
+                <div class="book-actions">
+                    <button class="book-btn favorite" onclick="addToFavorites('${book.link.replace(/'/g, "\\'")}', '${book.title.replace(/'/g, "\\'")}', '${(book.author || '').replace(/'/g, "\\'")}', '${book.cover.replace(/'/g, "\\'")}', '${(book.file_size || '').replace(/'/g, "\\'")}', this)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20.84 4.61C20.3292 4.099 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 2.99817C16.2275 2.99817 15.5121 3.14052 14.8446 3.41708C14.1772 3.69364 13.5708 4.099 13.06 4.61L12 5.67L10.94 4.61C9.9083 3.5783 8.50903 2.9987 7.05 2.9987C5.59096 2.9987 4.19169 3.5783 3.16 4.61C2.1283 5.6417 1.5487 7.04097 1.5487 8.5C1.5487 9.95903 2.1283 11.3583 3.16 12.39L4.22 13.45L12 21.23L19.78 13.45L20.84 12.39C21.351 11.8792 21.7563 11.2728 22.0329 10.6053C22.3095 9.93789 22.4518 9.22248 22.4518 8.5C22.4518 7.77752 22.3095 7.06211 22.0329 6.39467C21.7563 5.72723 21.351 5.1208 20.84 4.61V4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Favorite
+                    </button>
+                    <button class="book-btn secondary" onclick="quickDownload('${book.link.replace(/'/g, "\\'")}', '${book.title.replace(/'/g, "\\'")}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Download
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        return card;
+    }
+
+    // Handle initial search form submission
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('.search-form');
+        const grid = document.getElementById('resultsGrid');
+        
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const query = form.querySelector('input[name="query"]').value.trim();
+                if (!query) return;
+                
+                // Reset state
+                currentQuery = query;
+                currentPage = 1;
+                hasMore = true;
+                isLoading = true;
+                
+                // Clear previous results
+                if (grid) {
+                    grid.innerHTML = '';
+                    grid.style.display = 'none';
+                }
+                hideEndOfResults();
+                
+                // Show loading
+                showLoadingSpinner();
+                
+                // Perform search
+                performInitialSearch(query);
+            });
+        }
+
+        // Set up infinite scroll
+        window.addEventListener('scroll', function() {
+            if (isLoading || !hasMore) return;
+            
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            
+            // Trigger when user is 200px from bottom
+            if (scrollTop + windowHeight >= documentHeight - 200) {
+                loadMoreResults();
+            }
+        });
+
+        // Show initial results if any
+        {% if books %}
+        const grid = document.getElementById('resultsGrid');
+        if (grid) {
+            grid.style.display = 'grid';
+        }
+        {% endif %}
+    });
+
+    async function performInitialSearch(query) {
+        try {
+            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&page=1`);
+            const data = await response.json();
+            
+            const grid = document.getElementById('resultsGrid');
+            
+            if (data.books && data.books.length > 0) {
+                // Clear and populate grid
+                grid.innerHTML = '';
+                data.books.forEach(book => {
+                    const bookCard = createBookCard(book);
+                    grid.appendChild(bookCard);
+                });
+                
+                grid.style.display = 'grid';
+                hasMore = data.has_more;
+            } else {
+                grid.innerHTML = '<div class="no-results"><div class="no-results-icon">📚</div><p>No audiobooks found for your search.</p><p class="subtitle">Try different keywords or browse our featured books.</p></div>';
+                grid.style.display = 'flex';
+                hasMore = false;
+            }
+        } catch (error) {
+            console.error('Search failed:', error);
+            showNotification('Search failed. Please try again.', 'error');
+        } finally {
+            isLoading = false;
+            document.getElementById('loading-spinner').style.display = 'none';
+            hideScrollingMessages();
+            hideLoadingSpinner();
+        }
+    }
+
+    function sendToQB(link, title) {
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<div class="spinner" style="width:16px;height:16px;margin:0 auto;"></div>';
+        button.disabled = true;
+
+        fetch('/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: link, title: title })
+        })
+        .then(response => response.json())
+        .then(data => {
+            showNotification(data.message, data.message.includes('successfully') ? 'success' : 'error');
+        })
+        .catch(error => {
+            showNotification('Failed to add download: ' + error.message, 'error');
+        })
+        .finally(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    }
+
+    function showNotification(message, type = 'info') {
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                <span class="notification-text">${message}</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification && notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    // Advanced Search Functions
+    function toggleFilters() {
+        const advancedSearch = document.getElementById('advancedSearch');
+        const filterIcon = document.getElementById('filterIcon');
+        
+        filtersVisible = !filtersVisible;
+        
+        if (filtersVisible) {
+            advancedSearch.style.display = 'block';
+            filterIcon.textContent = '🔼';
+        } else {
+            advancedSearch.style.display = 'none';
+            filterIcon.textContent = '🔽';
+        }
+    }
+
+    function clearFilters() {
+        activeFilters = [];
+        const chips = document.querySelectorAll('.filter-chip');
+        chips.forEach(chip => chip.classList.remove('active'));
+    }
+
+    function applyFilters() {
+        const searchInput = document.querySelector('.search-bar');
+        let searchTerm = searchInput.value.trim();
+        
+        // Combine original search with filters
+        if (activeFilters.length > 0) {
+            const filterTerms = activeFilters.join(' ');
+            searchTerm = searchTerm ? `${searchTerm} ${filterTerms}` : filterTerms;
+        }
+        
+        if (searchTerm) {
+            // Update the search input to show the combined search
+            currentQuery = searchTerm;
+            currentPage = 1;
+            hasMore = true;
+            isLoading = true;
+            
+            // Clear previous results
+            const grid = document.getElementById('resultsGrid');
+            if (grid) {
+                grid.innerHTML = '';
+                grid.style.display = 'none';
+            }
+            hideEndOfResults();
+            
+            // Show loading
+            showLoadingSpinner();
+            
+            // Perform search
+            performInitialSearch(searchTerm);
+        }
+    }
+
+    // Initialize filter chips
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check for URL parameters and perform search if query exists
+        const urlParams = new URLSearchParams(window.location.search);
+        const queryParam = urlParams.get('q');
+        
+        if (queryParam) {
+            const searchInput = document.querySelector('.search-bar');
+            if (searchInput) {
+                searchInput.value = queryParam;
+                // Trigger search automatically
+                currentQuery = queryParam;
+                currentPage = 1;
+                hasMore = true;
+                isLoading = true;
+                
+                // Show loading properly
+                document.getElementById('loading-spinner').style.display = 'flex';
+                showScrollingMessages();
+                performInitialSearch(queryParam);
+            }
+        }
+        
+        // Set up filter chip clicks
+        const filterChips = document.querySelectorAll('.filter-chip');
+        filterChips.forEach(chip => {
+            chip.addEventListener('click', function() {
+                const filter = this.dataset.filter;
+                
+                if (this.classList.contains('active')) {
+                    // Remove filter
+                    this.classList.remove('active');
+                    activeFilters = activeFilters.filter(f => f !== filter);
+                } else {
+                    // Add filter
+                    this.classList.add('active');
+                    activeFilters.push(filter);
+                }
+            });
+        });
+
+        // Rest of existing DOMContentLoaded code...
+        const form = document.querySelector('.search-form');
+        const grid = document.getElementById('resultsGrid');
+        
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const query = form.querySelector('input[name="query"]').value.trim();
+                if (!query) return;
+                
+                // Reset state
+                currentQuery = query;
+                currentPage = 1;
+                hasMore = true;
+                isLoading = true;
+                
+                // Clear previous results
+                if (grid) {
+                    grid.innerHTML = '';
+                    grid.style.display = 'none';
+                }
+                hideEndOfResults();
+                
+                // Show loading
+                showLoadingSpinner();
+                
+                // Perform search
+                performInitialSearch(query);
+            });
+        }
+
+        // Set up infinite scroll
+        window.addEventListener('scroll', function() {
+            if (isLoading || !hasMore) return;
+            
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            
+            // Trigger when user is 200px from bottom
+            if (scrollTop + windowHeight >= documentHeight - 200) {
+                loadMoreResults();
+            }
+        });
+
+        // Show initial results if any
+        {% if books %}
+        const grid = document.getElementById('resultsGrid');
+        if (grid) {
+            grid.style.display = 'grid';
+        }
+        {% endif %}
+        
+        // Load search history when advanced search is opened
+        loadSearchHistory();
+    });
+    
+    // Search history functionality
+    async function loadSearchHistory() {
+        try {
+            const response = await fetch('/api/search/history');
+            const data = await response.json();
+            const historyContainer = document.getElementById('searchHistory');
+            
+            if (data.history && data.history.length > 0) {
+                historyContainer.innerHTML = '';
+                data.history.forEach(item => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'filter-chip history-chip';
+                    chip.textContent = item.query;
+                    chip.onclick = () => {
+                        document.querySelector('input[name="query"]').value = item.query;
+                        document.querySelector('.search-form').dispatchEvent(new Event('submit'));
+                    };
+                    historyContainer.appendChild(chip);
+                });
+            } else {
+                historyContainer.innerHTML = '<div class="no-history">No recent searches</div>';
+            }
+        } catch (error) {
+            console.error('Failed to load search history:', error);
+            const historyContainer = document.getElementById('searchHistory');
+            historyContainer.innerHTML = '<div class="no-history">Failed to load history</div>';
+        }
+    }
+    
+    // Navigate to book details when title or cover is clicked
+    function goToDetails(url) {
+        window.location.href = url;
+    }
+    
+    // Favorites functionality
+    async function toggleFavorite(link, title, author, cover, fileSize, button) {
+        const favIcon = button.querySelector('.fav-icon');
+        const favText = button.querySelector('.fav-text');
+        const originalIcon = favIcon.textContent;
+        const originalText = favText.textContent;
+        
+        // Show loading state
+        favIcon.textContent = '⏳';
+        favText.textContent = 'Loading...';
+        button.disabled = true;
+        
+        try {
+            // Check if already favorite
+            const checkResponse = await fetch('/api/favorites/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ link: link })
+            });
+            const checkData = await checkResponse.json();
+            
+            if (checkData.is_favorite) {
+                // Remove from favorites
+                const response = await fetch('/api/favorites/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link: link })
+                });
+                const data = await response.json();
+                
+                if (data.status === 'removed') {
+                    favIcon.textContent = '💙';
+                    favText.textContent = 'Favorite';
+                    showNotification('Removed from favorites', 'success');
+                } else {
+                    throw new Error('Failed to remove from favorites');
+                }
+            } else {
+                // Add to favorites
+                const response = await fetch('/api/favorites/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        link: link, 
+                        title: title, 
+                        author: author, 
+                        cover: cover, 
+                        file_size: fileSize 
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.status === 'added' || data.status === 'exists') {
+                    favIcon.textContent = '❤️';
+                    favText.textContent = 'Favorited';
+                    showNotification(data.message, 'success');
+                } else {
+                    throw new Error('Failed to add to favorites');
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            favIcon.textContent = originalIcon;
+            favText.textContent = originalText;
+            showNotification('Error updating favorites', 'error');
+        } finally {
+            button.disabled = false;
+        }
+    }
+    
+    // Update createBookCard to include favorite checking
+    const originalCreateBookCard = createBookCard;
+    createBookCard = function(book) {
+        const card = originalCreateBookCard(book);
+        
+        // Check if this book is already favorited
+        const favoriteBtn = card.querySelector('.favorite-btn');
+        if (favoriteBtn) {
+            checkAndUpdateFavoriteButton(book.link, favoriteBtn);
+        }
+        
+        return card;
+    };
+    
+    async function checkAndUpdateFavoriteButton(link, button) {
+        try {
+            const response = await fetch('/api/favorites/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ link: link })
+            });
+            const data = await response.json();
+            
+            const favIcon = button.querySelector('.fav-icon');
+            const favText = button.querySelector('.fav-text');
+            
+            if (data.is_favorite) {
+                favIcon.textContent = '❤️';
+                favText.textContent = 'Favorited';
+            }
+        } catch (error) {
+            console.error('Error checking favorite status:', error);
+        }
+    }
+    
+    // Enhanced filter functionality for history chips
+    function setupHistoryChips() {
+        const historyChips = document.querySelectorAll('.history-chip');
+        historyChips.forEach(chip => {
+            chip.addEventListener('click', function() {
+                const query = this.textContent;
+                const searchInput = document.querySelector('input[name="query"]');
+                searchInput.value = query;
+                
+                // Trigger search
+                const form = document.querySelector('.search-form');
+                form.dispatchEvent(new Event('submit'));
+                
+                // Close advanced search
+                toggleFilters();
+            });
+        });
+    }
+
+    // Add to favorites function (copied from home.html)
+    async function addToFavorites(link, title, author, cover, fileSize, button) {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<span>⏳</span> Adding...';
+        button.disabled = true;
+        
+        try {
+            const response = await fetch('/api/favorites/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    link: link, 
+                    title: title, 
+                    author: author, 
+                    cover: cover, 
+                    file_size: fileSize 
+                })
+            });
+            const data = await response.json();
+            
+            if (data.status === 'added' || data.status === 'exists') {
+                button.innerHTML = '<span>❤️</span> Favorited';
+                showNotification(data.message, 'success');
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.disabled = false;
+                }, 2000);
+            } else {
+                throw new Error('Failed to add to favorites');
+            }
+        } catch (error) {
+            console.error('Error adding to favorites:', error);
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+            showNotification('Error adding to favorites', 'error');
+        }
+    }
+
+    // Quick download function (copied from home.html)
+    function quickDownload(link, title) {
+        const button = event.target.closest('.book-btn');
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<span>⏳</span> Adding...';
+        button.disabled = true;
+
+        fetch('/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: link, title: title })
+        })
+        .then(response => response.json())
+        .then(data => {
+            showNotification(data.message, data.message.includes('successfully') ? 'success' : 'error');
+            if (data.message.includes('successfully')) {
+                button.innerHTML = '<span>✅</span> Added';
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.disabled = false;
+                }, 2000);
+            } else {
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            showNotification('Failed to add download: ' + error.message, 'error');
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        });
+    }
+</script>
+
+{% endblock %}
