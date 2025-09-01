@@ -1,4 +1,4 @@
-import os, re, requests, hashlib, time, sqlite3, threading, subprocess
+import os, re, requests, hashlib, time, sqlite3, threading, subprocess, logging
 from flask import Flask, request, render_template, jsonify, redirect, url_for, flash, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from bs4 import BeautifulSoup
@@ -12,6 +12,17 @@ import bcrypt
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-me')
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('audiobookbay.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -51,7 +62,7 @@ NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
 NAV_LINK_URL = os.getenv("NAV_LINK_URL")
 
 # User management with AudiobookShelf database
-ABS_DATABASE = os.getenv('ABS_DATABASE_PATH', 'absdatabase.sqlite')
+ABS_DATABASE = os.getenv('ABS_DATABASE_PATH', '/home/cyprian/Audiobooks/config-abs/absdatabase.sqlite')
 
 class User(UserMixin):
     def __init__(self, username, user_type='user'):
@@ -79,12 +90,12 @@ def get_db_connection():
         
         return conn
     except Exception as e:
-        print(f"[ERROR] Failed to connect to AudiobookShelf database: {e}")
+        logger.error(f"Failed to connect to AudiobookShelf database: {e}")
         return None
 
 def verify_user_credentials(username, password):
     """Verify user credentials against AudiobookShelf database"""
-    print(f"[DEBUG] Attempting authentication for user: {username}")
+    logger.debug(f"Attempting authentication for user: {username}")
     
     try:
         # Try using sqlite3 command line tool to bypass schema issues
@@ -114,23 +125,23 @@ def verify_user_credentials(username, password):
                 is_active = user_data.get('isActive')
                 
                 if not stored_hash:
-                    print(f"[DEBUG] No password hash for user {username}")
+                    logger.debug(f"No password hash for user {username}")
                     return None
                 
                 # AudiobookShelf uses bcrypt - verify password directly
                 if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
-                    print(f"[DEBUG] Authentication successful for {username}")
+                    logger.info(f"Authentication successful for {username}")
                     return {
                         'username': db_username,
                         'type': user_type,
                         'is_active': is_active
                     }
                 else:
-                    print(f"[DEBUG] Password verification failed for {username}")
+                    logger.warning(f"Password verification failed for {username}")
                     return None
         
         # If subprocess approach fails, try direct connection one more time
-        print("[DEBUG] Command line sqlite3 failed, trying direct connection...")
+        logger.debug("Command line sqlite3 failed, trying direct connection...")
         
         # Last attempt with most minimal connection
         conn = sqlite3.connect(ABS_DATABASE, isolation_level=None)
@@ -142,18 +153,18 @@ def verify_user_credentials(username, password):
         if result:
             db_username, stored_hash, user_type, is_active = result
             if stored_hash and bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
-                print(f"[DEBUG] Authentication successful for {username}")
+                logger.info(f"Authentication successful for {username}")
                 return {
                     'username': db_username,
                     'type': user_type,
                     'is_active': is_active
                 }
                 
-        print(f"[DEBUG] User {username} not found or authentication failed")
+        logger.warning(f"User {username} not found or authentication failed")
         return None
             
     except Exception as e:
-        print(f"[ERROR] Authentication failed for {username}: {e}")
+        logger.error(f"Authentication failed for {username}: {e}")
         return None
 
 def verify_password_hash(password, stored_hash):
@@ -168,12 +179,12 @@ def verify_password_hash(password, stored_hash):
         
         return bcrypt.checkpw(password.encode('utf-8'), converted_hash.encode('utf-8'))
     except Exception as e:
-        print(f"[ERROR] Password verification failed with hash conversion: {e}")
+        logger.error(f"Password verification failed with hash conversion: {e}")
         # Fallback: try original hash format
         try:
             return bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8'))
         except Exception as e2:
-            print(f"[ERROR] Password verification failed with original hash: {e2}")
+            logger.error(f"Password verification failed with original hash: {e2}")
             return False
 
 def get_user_by_username(username):
@@ -205,11 +216,11 @@ def get_user_by_username(username):
                     'is_active': user_data.get('isActive')
                 }
         
-        print(f"[DEBUG] User {username} not found via command line sqlite3")
+        logger.warning(f"User {username} not found via command line sqlite3")
         return None
         
     except Exception as e:
-        print(f"[ERROR] Failed to get user {username}: {e}")
+        logger.error(f"Failed to get user {username}: {e}")
         return None
 
 # User-specific data management
@@ -267,7 +278,7 @@ def load_user_favorites(username):
             return favorites
         return []
     except Exception as e:
-        print(f"[ERROR] Failed to load user favorites: {e}")
+        logger.error(f"Failed to load user favorites: {e}")
         return []
 
 def save_user_favorites(username, favorites):
@@ -289,7 +300,7 @@ def add_user_favorite(username, book_title, book_url, book_cover="", book_author
         ], capture_output=True, text=True, timeout=10)
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to add favorite: {e}")
+        logger.error(f"Failed to add favorite: {e}")
         return False
 
 def remove_user_favorite(username, book_url):
@@ -302,7 +313,7 @@ def remove_user_favorite(username, book_url):
         ], capture_output=True, text=True, timeout=10)
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to remove favorite: {e}")
+        logger.error(f"Failed to remove favorite: {e}")
         return False
 
 def is_admin_user(username):
@@ -320,7 +331,7 @@ def is_admin_user(username):
             return data[0]['type'] == 'root' if data else False
         return False
     except Exception as e:
-        print(f"[ERROR] Failed to check admin status: {e}")
+        logger.error(f"Failed to check admin status: {e}")
         return False
 
 def get_all_users():
@@ -337,7 +348,7 @@ def get_all_users():
             return json.loads(result.stdout.strip())
         return []
     except Exception as e:
-        print(f"[ERROR] Failed to get users: {e}")
+        logger.error(f"Failed to get users: {e}")
         return []
 
 def get_all_user_downloads():
@@ -355,7 +366,7 @@ def get_all_user_downloads():
             return {item['user_id']: item['download_count'] for item in data}
         return {}
     except Exception as e:
-        print(f"[ERROR] Failed to get all user downloads: {e}")
+        logger.error(f"Failed to get all user downloads: {e}")
         return {}
 
 def get_detailed_user_downloads():
@@ -372,7 +383,7 @@ def get_detailed_user_downloads():
             return json.loads(result.stdout.strip())
         return []
     except Exception as e:
-        print(f"[ERROR] Failed to get detailed downloads: {e}")
+        logger.error(f"Failed to get detailed downloads: {e}")
         return []
 
 def load_user_downloads(username):
@@ -391,7 +402,7 @@ def load_user_downloads(username):
             return [{'hash': d['torrent_hash'], 'title': d['book_title'], 'url': d['book_url'], 'timestamp': d['created_at']} for d in downloads]
         return []
     except Exception as e:
-        print(f"[ERROR] Failed to load user downloads: {e}")
+        logger.error(f"Failed to load user downloads: {e}")
         return []
 
 def save_user_downloads(username, downloads):
@@ -412,7 +423,7 @@ def add_user_download(username, torrent_hash, book_title, download_url):
         ], capture_output=True, text=True, timeout=10)
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to add download: {e}")
+        logger.error(f"Failed to add download: {e}")
         return False
 
 # Legacy functions for backward compatibility (will migrate existing data)
@@ -464,18 +475,19 @@ def load_user(user_id):
         return User(user_data['username'], user_data['type'])
     return None
 
-#Print configuration
-print(f"ABB_HOSTNAME: {ABB_HOSTNAME}")
-print(f"DOWNLOAD_CLIENT: {DOWNLOAD_CLIENT}")
-print(f"DL_HOST: {DL_HOST}")
-print(f"DL_PORT: {DL_PORT}")
-print(f"DL_URL: {DL_URL}")
-print(f"DL_USERNAME: {DL_USERNAME}")
-print(f"DL_CATEGORY: {DL_CATEGORY}")
-print(f"SAVE_PATH_BASE: {SAVE_PATH_BASE}")
-print(f"NAV_LINK_NAME: {NAV_LINK_NAME}")
-print(f"NAV_LINK_URL: {NAV_LINK_URL}")
-print(f"PAGE_LIMIT: {PAGE_LIMIT}")
+# Log configuration
+logger.info(f"ABB_HOSTNAME: {ABB_HOSTNAME}")
+logger.info(f"DOWNLOAD_CLIENT: {DOWNLOAD_CLIENT}")
+logger.info(f"DL_HOST: {DL_HOST}")
+logger.info(f"DL_PORT: {DL_PORT}")
+logger.info(f"DL_URL: {DL_URL}")
+logger.info(f"DL_USERNAME: {DL_USERNAME}")
+logger.info(f"DL_CATEGORY: {DL_CATEGORY}")
+logger.info(f"SAVE_PATH_BASE: {SAVE_PATH_BASE}")
+logger.info(f"NAV_LINK_NAME: {NAV_LINK_NAME}")
+logger.info(f"NAV_LINK_URL: {NAV_LINK_URL}")
+logger.info(f"PAGE_LIMIT: {PAGE_LIMIT}")
+logger.info(f"ABS_DATABASE: {ABS_DATABASE}")
 
 
 @app.context_processor
@@ -498,7 +510,7 @@ def search_audiobookbay(query, page_num=1):
     try:
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code != 200:
-            print(f"[ERROR] Failed to fetch page {page_num}. Status Code: {response.status_code}")
+            logger.error(f"Failed to fetch page {page_num}. Status Code: {response.status_code}")
             return results
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -513,11 +525,11 @@ def search_audiobookbay(query, page_num=1):
             if all_posts:
                 # Filter out hidden posts with display:none (SAME AS HOMEPAGE)
                 posts = [p for p in all_posts if 'display:none' not in str(p)]
-                print(f"[INFO] Found {len(all_posts)} posts, {len(posts)} visible using selector '{selector}' on page {page_num}")
+                logger.info(f"Found {len(all_posts)} posts, {len(posts)} visible using selector '{selector}' on page {page_num}")
                 break
         
         if not posts:
-            print(f"[WARNING] No posts found with any selector on search page {page_num}")
+            logger.warning(f"No posts found with any selector on search page {page_num}")
             return []
 
         for post in posts:
@@ -609,14 +621,14 @@ def search_audiobookbay(query, page_num=1):
 
                 results.append(book_data)
             except Exception as e:
-                print(f"[ERROR] Skipping post due to error: {e}")
+                logger.error(f"Skipping post due to error: {e}")
                 continue
                 
-        print(f"[INFO] Found {len(results)} results on page {page_num}")
+        logger.info(f"Found {len(results)} results on page {page_num}")
         return results
         
     except Exception as e:
-        print(f"[ERROR] Failed to search page {page_num}: {e}")
+        logger.error(f"Failed to search page {page_num}: {e}")
         return results
 
 # Helper function to scrape AudiobookBay homepage
@@ -636,14 +648,14 @@ def scrape_homepage():
             try:
                 response = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
                 if response.status_code == 200:
-                    print(f"[INFO] Successfully connected to {url}")
+                    logger.info(f"Successfully connected to {url}")
                     break
             except Exception as e:
-                print(f"[INFO] Failed to connect to {url}: {e}")
+                logger.info(f"Failed to connect to {url}: {e}")
                 continue
         
         if not response or response.status_code != 200:
-            print(f"[ERROR] Failed to fetch homepage from any URL. Last status: {response.status_code if response else 'None'}")
+            logger.error(f"Failed to fetch homepage from any URL. Last status: {response.status_code if response else 'None'}")
             return []
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -658,11 +670,11 @@ def scrape_homepage():
             if all_posts:
                 # Filter out hidden posts with display:none
                 posts = [p for p in all_posts if 'display:none' not in str(p)]
-                print(f"[INFO] Found {len(all_posts)} posts, {len(posts)} visible using selector '{selector}'")
+                logger.info(f"Found {len(all_posts)} posts, {len(posts)} visible using selector '{selector}'")
                 break
         
         if not posts:
-            print("[WARNING] No posts found with any selector")
+            logger.warning("No posts found with any selector")
             return []
         
         for post in posts:
@@ -754,12 +766,12 @@ def scrape_homepage():
 
                 results.append(book_data)
             except Exception as e:
-                print(f"[ERROR] Skipping post due to error: {e}")
+                logger.error(f"Skipping post due to error: {e}")
                 continue
                 
         return results
     except Exception as e:
-        print(f"[ERROR] Failed to scrape homepage: {e}")
+        logger.error(f"Failed to scrape homepage: {e}")
         return []
 
 # Helper function to scrape AudiobookBay homepage with pagination
@@ -787,14 +799,14 @@ def scrape_homepage_with_pagination(page_num=1):
             try:
                 response = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
                 if response.status_code == 200:
-                    print(f"[INFO] Successfully connected to {url}")
+                    logger.info(f"Successfully connected to {url}")
                     break
             except Exception as e:
-                print(f"[INFO] Failed to connect to {url}: {e}")
+                logger.info(f"Failed to connect to {url}: {e}")
                 continue
         
         if not response or response.status_code != 200:
-            print(f"[ERROR] Failed to fetch homepage page {page_num} from any URL. Last status: {response.status_code if response else 'None'}")
+            logger.error(f"Failed to fetch homepage page {page_num} from any URL. Last status: {response.status_code if response else 'None'}")
             return []
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -809,11 +821,11 @@ def scrape_homepage_with_pagination(page_num=1):
             if all_posts:
                 # Filter out hidden posts with display:none (SAME AS HOMEPAGE)
                 posts = [p for p in all_posts if 'display:none' not in str(p)]
-                print(f"[INFO] Found {len(all_posts)} posts, {len(posts)} visible using selector '{selector}' on page {page_num}")
+                logger.info(f"Found {len(all_posts)} posts, {len(posts)} visible using selector '{selector}' on page {page_num}")
                 break
         
         if not posts:
-            print(f"[WARNING] No posts found with any selector on page {page_num}")
+            logger.warning(f"No posts found with any selector on page {page_num}")
             return []
         
         for post in posts:
@@ -905,12 +917,12 @@ def scrape_homepage_with_pagination(page_num=1):
 
                 results.append(book_data)
             except Exception as e:
-                print(f"[ERROR] Skipping post due to error on page {page_num}: {e}")
+                logger.error(f"Skipping post due to error on page {page_num}: {e}")
                 continue
                 
         return results
     except Exception as e:
-        print(f"[ERROR] Failed to scrape homepage page {page_num}: {e}")
+        logger.error(f"Failed to scrape homepage page {page_num}: {e}")
         return []
 
 # Helper function to extract magnet link from details page
@@ -921,7 +933,7 @@ def extract_magnet_link(details_url):
     try:
         response = requests.get(details_url, headers=headers)
         if response.status_code != 200:
-            print(f"[ERROR] Failed to fetch details page. Status Code: {response.status_code}")
+            logger.error(f"Failed to fetch details page. Status Code: {response.status_code}")
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -929,7 +941,7 @@ def extract_magnet_link(details_url):
         # Extract Info Hash
         info_hash_row = soup.find('td', string=re.compile(r'Info Hash', re.IGNORECASE))
         if not info_hash_row:
-            print("[ERROR] Info Hash not found on the page.")
+            logger.error("Info Hash not found on the page.")
             return None
         info_hash = info_hash_row.find_next_sibling('td').text.strip()
 
@@ -938,7 +950,7 @@ def extract_magnet_link(details_url):
         trackers = [row.text.strip() for row in tracker_rows]
 
         if not trackers:
-            print("[WARNING] No trackers found on the page. Using default trackers.")
+            logger.warning("No trackers found on the page. Using default trackers.")
             trackers = [
                 "udp://tracker.openbittorrent.com:80",
                 "udp://opentor.org:2710",
@@ -952,11 +964,11 @@ def extract_magnet_link(details_url):
         trackers_query = "&".join(f"tr={requests.utils.quote(tracker)}" for tracker in trackers)
         magnet_link = f"magnet:?xt=urn:btih:{info_hash}&{trackers_query}"
 
-        print(f"[DEBUG] Generated Magnet Link: {magnet_link}")
+        logger.debug(f"Generated Magnet Link: {magnet_link}")
         return magnet_link
 
     except Exception as e:
-        print(f"[ERROR] Failed to extract magnet link: {e}")
+        logger.error(f"Failed to extract magnet link: {e}")
         return None
 
 # Helper function to extract related books from AudiobookBay page
@@ -1015,7 +1027,7 @@ def get_related_books_from_page(soup, book_url):
                         'category': ''
                     })
                 except Exception as e:
-                    print(f"[DEBUG] Error extracting related book: {e}")
+                    logger.debug(f"Error extracting related book: {e}")
                     continue
         
         # If no related section found, try to find links in the general content area
@@ -1052,14 +1064,14 @@ def get_related_books_from_page(soup, book_url):
                             'category': ''
                         })
                     except Exception as e:
-                        print(f"[DEBUG] Error extracting content link: {e}")
+                        logger.debug(f"Error extracting content link: {e}")
                         continue
         
-        print(f"[DEBUG] Found {len(related_books)} related books from page")
+        logger.debug(f"Found {len(related_books)} related books from page")
         return related_books
         
     except Exception as e:
-        print(f"[ERROR] Failed to extract related books: {e}")
+        logger.error(f"Failed to extract related books: {e}")
         return []
 
 # Helper function to extract book details from AudiobookBay page
@@ -1070,7 +1082,7 @@ def get_book_details(book_url):
     try:
         response = requests.get(book_url, headers=headers, timeout=15)
         if response.status_code != 200:
-            print(f"[ERROR] Failed to fetch book details. Status Code: {response.status_code}")
+            logger.error(f"Failed to fetch book details. Status Code: {response.status_code}")
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -1271,7 +1283,7 @@ def get_book_details(book_url):
         return enhanced_data
         
     except Exception as e:
-        print(f"[ERROR] Failed to extract book details: {e}")
+        logger.error(f"Failed to extract book details: {e}")
         return None
 
 # Helper function to sanitize titles
@@ -1714,16 +1726,16 @@ def extract_comments(soup):
                     })
                     
             except Exception as e:
-                print(f"[DEBUG] Error extracting individual comment: {e}")
+                logger.debug(f"Error extracting individual comment: {e}")
                 continue
         
         # Limit to maximum 20 comments
         comments = comments[:20]
-        print(f"[DEBUG] Extracted {len(comments)} comments")
+        logger.debug(f"Extracted {len(comments)} comments")
         return comments
         
     except Exception as e:
-        print(f"[DEBUG] Error extracting comments: {e}")
+        logger.debug(f"Error extracting comments: {e}")
         return []
 
 def extract_torrent_files(soup, content_text):
@@ -1818,15 +1830,15 @@ def scrape_available_categories():
                         })
         
         if categories:
-            print(f"[INFO] Loaded {len(categories)} categories from elements file")
+            logger.info(f"Loaded {len(categories)} categories from elements file")
             # Return just the names for compatibility with existing code
             return [cat['name'] for cat in categories]
         else:
-            print("[WARNING] No categories found in elements file, using fallback")
+            logger.warning("No categories found in elements file, using fallback")
             return get_default_categories()
             
     except Exception as e:
-        print(f"[ERROR] Failed to parse categories from elements file: {e}")
+        logger.error(f"Failed to parse categories from elements file: {e}")
         return get_default_categories()
 
 def get_default_categories():
@@ -1873,15 +1885,15 @@ def scrape_available_languages():
                         })
         
         if languages:
-            print(f"[INFO] Loaded {len(languages)} languages from elements file")
+            logger.info(f"Loaded {len(languages)} languages from elements file")
             # Return just the names for compatibility with existing code
             return [lang['name'] for lang in languages]
         else:
-            print("[WARNING] No languages found in elements file, using fallback")
+            logger.warning("No languages found in elements file, using fallback")
             return get_default_languages()
             
     except Exception as e:
-        print(f"[ERROR] Failed to parse languages from elements file: {e}")
+        logger.error(f"Failed to parse languages from elements file: {e}")
         return get_default_languages()
 
 def get_default_languages():
@@ -1963,7 +1975,7 @@ def scrape_hot_searches():
         # Always scrape from live website for real-time data
         response = requests.get(f"http://{ABB_HOSTNAME}", headers=headers, timeout=10)
         if response.status_code != 200:
-            print(f"[ERROR] Failed to fetch AudiobookBay homepage for hot searches. Status: {response.status_code}")
+            logger.error(f"Failed to fetch AudiobookBay homepage for hot searches. Status: {response.status_code}")
             return []  # Return empty list instead of fallback
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -2032,14 +2044,14 @@ def scrape_hot_searches():
             
             # Limit to first 20 for UI performance
             unique_searches = unique_searches[:20]
-            print(f"[INFO] Successfully scraped {len(unique_searches)} hot searches from live website")
+            logger.info(f"Successfully scraped {len(unique_searches)} hot searches from live website")
             return unique_searches
         else:
-            print("[INFO] No hot searches found on live website")
+            logger.info("No hot searches found on live website")
             return []  # Return empty list instead of fallback
         
     except Exception as e:
-        print(f"[ERROR] Failed to scrape hot searches from website: {e}")
+        logger.error(f"Failed to scrape hot searches from website: {e}")
         return []  # Return empty list instead of fallback
 
 def scrape_available_ages():
@@ -2076,19 +2088,19 @@ def scrape_available_ages():
                             })
         
         if ages:
-            print(f"[INFO] Loaded {len(ages)} age categories from elements file: {[a['name'] for a in ages]}")
+            logger.info(f"Loaded {len(ages)} age categories from elements file: {[a['name'] for a in ages]}")
             return ages
         else:
-            print("[WARNING] No ages found in elements file, using fallback")
+            logger.warning("No ages found in elements file, using fallback")
             return get_default_ages()
             
     except Exception as e:
-        print(f"[ERROR] Failed to parse ages from elements file: {e}")
+        logger.error(f"Failed to parse ages from elements file: {e}")
         return get_default_ages()
 
 def get_default_ages():
     """Fallback ages if scraping fails"""
-    print("[WARNING] Using fallback ages - scraping failed")
+    logger.warning("Using fallback ages - scraping failed")
     return [
         {'name': 'Children', 'key': 'children', 'url': '/audio-books/type/children/', 'count': None},
         {'name': 'Teen & Young Adult', 'key': 'teen-young-adult', 'url': '/audio-books/type/teen-young-adult/', 'count': None},
@@ -2127,19 +2139,19 @@ def scrape_available_modifiers():
                         })
         
         if modifiers:
-            print(f"[INFO] Loaded {len(modifiers)} modifiers from elements file: {[m['name'] for m in modifiers]}")
+            logger.info(f"Loaded {len(modifiers)} modifiers from elements file: {[m['name'] for m in modifiers]}")
             return modifiers
         else:
-            print("[WARNING] No modifiers found in elements file, using fallback")
+            logger.warning("No modifiers found in elements file, using fallback")
             return get_default_modifiers()
             
     except Exception as e:
-        print(f"[ERROR] Failed to parse modifiers from elements file: {e}")
+        logger.error(f"Failed to parse modifiers from elements file: {e}")
         return get_default_modifiers()
 
 def get_default_modifiers():
     """Fallback modifiers if scraping fails"""
-    print("[WARNING] Using fallback modifiers - scraping failed")
+    logger.warning("Using fallback modifiers - scraping failed")
     return [
         {'name': 'Anthology', 'key': 'anthology', 'url': '/audio-books/type/anthology/', 'count': None},
         {'name': 'Bestsellers', 'key': 'bestsellers', 'url': '/audio-books/type/bestsellers/', 'count': None},
@@ -2185,7 +2197,7 @@ def home():
         featured_books = scrape_homepage()
         return render_template('home.html', books=featured_books)
     except Exception as e:
-        print(f"[ERROR] Failed to load homepage: {e}")
+        logger.error(f"Failed to load homepage: {e}")
         return render_template('home.html', books=[], error="Failed to load featured books")
 
 # Endpoint for search page
@@ -2212,7 +2224,7 @@ def search():
             
         return render_template('search.html', books=books, query=query, category=category)
     except Exception as e:
-        print(f"[ERROR] Failed to search: {e}")
+        logger.error(f"Failed to search: {e}")
         return render_template('search.html', books=books, query=query, category=category, error=f"Failed to search. { str(e) }")
 
 # API endpoint for infinite scroll search results
@@ -2235,7 +2247,7 @@ def api_search():
             'page': page
         })
     except Exception as e:
-        print(f"[ERROR] API search failed: {e}")
+        logger.error(f"API search failed: {e}")
         return jsonify({'error': str(e)}), 500
 
 # API endpoint for home page infinite scroll
@@ -2254,7 +2266,7 @@ def api_home():
             'page': page
         })
     except Exception as e:
-        print(f"[ERROR] API home failed: {e}")
+        logger.error(f"API home failed: {e}")
         return jsonify({'error': str(e)}), 500
 
 # Book details page
@@ -2280,14 +2292,14 @@ def book_details(book_url):
                     soup = BeautifulSoup(response.text, 'html.parser')
                     related_books = get_related_books_from_page(soup, decoded_url)
             except Exception as e:
-                print(f"[ERROR] Failed to get related books: {e}")
+                logger.error(f"Failed to get related books: {e}")
                 related_books = []
             
             return render_template('book_details.html', book=book_info, related_books=related_books)
         else:
             return render_template('book_details.html', book=None, error="Failed to load book details")
     except Exception as e:
-        print(f"[ERROR] Failed to load book details: {e}")
+        logger.error(f"Failed to load book details: {e}")
         return render_template('book_details.html', book=None, error="Failed to load book details")
 
 
@@ -2334,7 +2346,7 @@ def send():
         # Track the download for the current user
         if torrent_hash:
             add_user_download(current_user.username, torrent_hash, title, details_url)
-            print(f"[DEBUG] Tracked download for user {current_user.username}: {title}")
+            logger.debug(f"Tracked download for user {current_user.username}: {title}")
 
         return jsonify({'message': f'Download added successfully! This may take some time, the download will show in Audiobookshelf when completed.'})
     except Exception as e:
@@ -2428,7 +2440,7 @@ def browse_category(category, page_num=1):
     try:
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code != 200:
-            print(f"[ERROR] Failed to fetch category {category} page {page_num}. Status Code: {response.status_code}")
+            logger.error(f"Failed to fetch category {category} page {page_num}. Status Code: {response.status_code}")
             return results
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -2443,11 +2455,11 @@ def browse_category(category, page_num=1):
             if all_posts:
                 # Filter out hidden posts with display:none (SAME AS HOMEPAGE)
                 posts = [p for p in all_posts if 'display:none' not in str(p)]
-                print(f"[INFO] Found {len(all_posts)} posts, {len(posts)} visible using selector '{selector}' for category {category} on page {page_num}")
+                logger.info(f"Found {len(all_posts)} posts, {len(posts)} visible using selector '{selector}' for category {category} on page {page_num}")
                 break
         
         if not posts:
-            print(f"[WARNING] No posts found with any selector for category {category} on page {page_num}")
+            logger.warning(f"No posts found with any selector for category {category} on page {page_num}")
             return []
 
         for post in posts:
@@ -2539,14 +2551,14 @@ def browse_category(category, page_num=1):
 
                 results.append(book_data)
             except Exception as e:
-                print(f"[ERROR] Skipping post due to error: {e}")
+                logger.error(f"Skipping post due to error: {e}")
                 continue
                 
-        print(f"[INFO] Found {len(results)} results for category {category} on page {page_num}")
+        logger.info(f"Found {len(results)} results for category {category} on page {page_num}")
         return results
         
     except Exception as e:
-        print(f"[ERROR] Failed to browse category {category} page {page_num}: {e}")
+        logger.error(f"Failed to browse category {category} page {page_num}: {e}")
         return results
 
 # Category browsing page
@@ -2573,7 +2585,7 @@ def api_browse_category(category):
             'category': category
         })
     except Exception as e:
-        print(f"[ERROR] API category browse failed: {e}")
+        logger.error(f"API category browse failed: {e}")
         return jsonify({'error': str(e)}), 500
 
 # New Browse Section APIs
@@ -2584,7 +2596,7 @@ def api_browse_ages():
         ages = get_ages()
         return jsonify({'ages': ages})
     except Exception as e:
-        print(f"[ERROR] API ages failed: {e}")
+        logger.error(f"API ages failed: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/browse/categories')
@@ -2602,7 +2614,7 @@ def api_browse_categories():
             })
         return jsonify({'categories': formatted_categories})
     except Exception as e:
-        print(f"[ERROR] API categories failed: {e}")
+        logger.error(f"API categories failed: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/browse/modifiers')
@@ -2612,7 +2624,7 @@ def api_browse_modifiers():
         modifiers = get_modifiers()
         return jsonify({'modifiers': modifiers})
     except Exception as e:
-        print(f"[ERROR] API modifiers failed: {e}")
+        logger.error(f"API modifiers failed: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/browse/languages')
@@ -2630,7 +2642,7 @@ def api_browse_languages():
             })
         return jsonify({'languages': formatted_languages})
     except Exception as e:
-        print(f"[ERROR] API languages failed: {e}")
+        logger.error(f"API languages failed: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/browse/hot-search')
@@ -2640,7 +2652,7 @@ def api_browse_hot_search():
         searches = get_hot_searches()
         return jsonify({'searches': searches})
     except Exception as e:
-        print(f"[ERROR] API hot search failed: {e}")
+        logger.error(f"API hot search failed: {e}")
         return jsonify({'error': str(e)}), 500
 
 # Dynamic browse endpoints for each section type
@@ -2680,7 +2692,7 @@ def api_browse_section_item(section_type, item_key):
             'item_key': item_key
         })
     except Exception as e:
-        print(f"[ERROR] API browse {section_type} {item_key} failed: {e}")
+        logger.error(f"API browse {section_type} {item_key} failed: {e}")
         return jsonify({'error': str(e)}), 500
 
 # Favorites management
@@ -2729,7 +2741,7 @@ def favorites_page():
         user_favorites = load_user_favorites(current_user.username)
         return render_template('favorites.html', books=user_favorites)
     except Exception as e:
-        print(f"[ERROR] Failed to load favorites: {e}")
+        logger.error(f"Failed to load favorites: {e}")
         return render_template('favorites.html', books=[], error="Failed to load favorites")
 
 @app.route('/api/search/history')
@@ -2977,9 +2989,9 @@ def auto_stop_completed_torrents():
                     if torrent['progress'] >= 1.0 and torrent['state'].lower() in ['uploading', 'seeding', 'stalledup']:
                         try:
                             qb.torrents_pause(hashes=torrent['hash'])
-                            print(f"[AUTO-STOP] Paused completed torrent: {torrent['name']}")
+                            logger.info(f"AUTO-STOP: Paused completed torrent: {torrent['name']}")
                         except Exception as e:
-                            print(f"[ERROR] Failed to auto-pause torrent {torrent['name']}: {e}")
+                            logger.error(f"Failed to auto-pause torrent {torrent['name']}: {e}")
             
             elif DOWNLOAD_CLIENT == 'transmission':
                 transmission = transmissionrpc(host=DL_HOST, port=DL_PORT, username=DL_USERNAME, password=DL_PASSWORD)
@@ -2990,12 +3002,12 @@ def auto_stop_completed_torrents():
                     if torrent.progress >= 1.0 and torrent.status.lower() in ['seed', 'seed_wait']:
                         try:
                             transmission.stop_torrent(torrent.hashString)
-                            print(f"[AUTO-STOP] Stopped completed torrent: {torrent.name}")
+                            logger.info(f"AUTO-STOP: Stopped completed torrent: {torrent.name}")
                         except Exception as e:
-                            print(f"[ERROR] Failed to auto-stop torrent {torrent.name}: {e}")
+                            logger.error(f"Failed to auto-stop torrent {torrent.name}: {e}")
             
         except Exception as e:
-            print(f"[ERROR] Auto-stop service error: {e}")
+            logger.error(f"Auto-stop service error: {e}")
         
         # Check every 60 seconds
         time.sleep(60)
@@ -3008,9 +3020,9 @@ def start_auto_stop_service():
     if DOWNLOAD_CLIENT and DOWNLOAD_CLIENT != 'none':
         auto_stop_thread = threading.Thread(target=auto_stop_completed_torrents, daemon=True)
         auto_stop_thread.start()
-        print("[INFO] Auto-stop seeding service started")
+        logger.info("Auto-stop seeding service started")
     else:
-        print("[INFO] Auto-stop service disabled - no download client configured")
+        logger.info("Auto-stop service disabled - no download client configured")
 
 @app.route('/api/settings/auto-stop', methods=['GET', 'POST'])
 @login_required
@@ -3050,7 +3062,7 @@ def browse_by_language(language):
         language_name = language.replace('-', ' ').title()
         return render_template('category.html', books=books, category=language, category_name=f"{language_name} Audiobooks")
     except Exception as e:
-        print(f"[ERROR] Failed to browse language {language}: {e}")
+        logger.error(f"Failed to browse language {language}: {e}")
         return render_template('category.html', books=[], category=language, error=f"Failed to load {language} books")
 
 # Popular books endpoint
@@ -3061,7 +3073,7 @@ def popular_books():
         books = scrape_homepage()  # Use homepage as popular books proxy
         return render_template('category.html', books=books, category='popular', category_name="Popular Books")
     except Exception as e:
-        print(f"[ERROR] Failed to load popular books: {e}")
+        logger.error(f"Failed to load popular books: {e}")
         return render_template('category.html', books=[], category='popular', error="Failed to load popular books")
 
 # Recent books endpoint
@@ -3072,7 +3084,7 @@ def recent_books():
         books = scrape_homepage_with_pagination(1)  # Get most recent from homepage
         return render_template('category.html', books=books, category='recent', category_name="Recent Books")
     except Exception as e:
-        print(f"[ERROR] Failed to load recent books: {e}")
+        logger.error(f"Failed to load recent books: {e}")
         return render_template('category.html', books=[], category='recent', error="Failed to load recent books")
 
 # Admin dashboard routes (root users only)
@@ -3101,7 +3113,7 @@ def admin_dashboard():
         
         return render_template('admin.html', users=all_users)
     except Exception as e:
-        print(f"[ERROR] Failed to load admin dashboard: {e}")
+        logger.error(f"Failed to load admin dashboard: {e}")
         return render_template('admin.html', users=[], error="Failed to load admin dashboard")
 
 @app.route('/admin/downloads')
@@ -3122,7 +3134,7 @@ def admin_downloads():
                              downloads=detailed_downloads, 
                              today_count=len(today_downloads))
     except Exception as e:
-        print(f"[ERROR] Failed to load admin downloads: {e}")
+        logger.error(f"Failed to load admin downloads: {e}")
         return render_template('admin_downloads.html', downloads=[], error="Failed to load download data", today_count=0)
 
 @app.route('/admin/status')
@@ -3189,7 +3201,7 @@ def admin_status():
         
         return render_template('admin_status.html', torrents=torrent_list)
     except Exception as e:
-        print(f"[ERROR] Failed to load admin status: {e}")
+        logger.error(f"Failed to load admin status: {e}")
         return render_template('admin_status.html', torrents=[], error="Failed to load torrent status")
 
 if __name__ == '__main__':
