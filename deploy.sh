@@ -87,21 +87,22 @@ echo ""
 echo "Step 5: Building Docker image..."
 docker-compose -f docker-compose.prod.yaml build
 
-# Step 6: Setup nginx
+# Step 6: Obtain SSL certificate first (before nginx config)
 echo ""
-echo "Step 6: Configuring nginx..."
-cp "$NGINX_CONF_SRC" "$NGINX_CONF_DEST"
-ln -sf "$NGINX_CONF_DEST" /etc/nginx/sites-enabled/abb.bvronan.xyz
-
-# Step 7: Obtain SSL certificate
-echo ""
-echo "Step 7: Setting up SSL certificate..."
+echo "Step 6: Setting up SSL certificate..."
 if [ ! -d "/etc/letsencrypt/live/abb.bvronan.xyz" ]; then
     echo "Obtaining SSL certificate..."
-    certbot --nginx -d abb.bvronan.xyz --non-interactive --agree-tos --email cyprianmaison@outlook.com  # UPDATE THIS
+    # Use standalone mode to get certificate without nginx config
+    certbot certonly --standalone -d abb.bvronan.xyz --non-interactive --agree-tos --email cyprianmaison@outlook.com --pre-hook "systemctl stop nginx" --post-hook "systemctl start nginx"
 else
     echo "SSL certificate already exists"
 fi
+
+# Step 7: Setup nginx
+echo ""
+echo "Step 7: Configuring nginx..."
+cp "$NGINX_CONF_SRC" "$NGINX_CONF_DEST"
+ln -sf "$NGINX_CONF_DEST" /etc/nginx/sites-enabled/abb.bvronan.xyz
 
 # Test nginx configuration
 nginx -t
