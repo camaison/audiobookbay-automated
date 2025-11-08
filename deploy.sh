@@ -4,6 +4,7 @@
 # This script sets up and deploys the application on a VPS
 
 set -e  # Exit on error
+set -o pipefail  # Exit on pipe failures
 
 echo "==================================================================="
 echo "AudiobookBay Automated - VPS Deployment"
@@ -11,7 +12,7 @@ echo "==================================================================="
 
 # Configuration
 APP_DIR="/opt/audiobookbay-automated"
-REPO_URL="https://github.com/YOUR_USERNAME/audiobookbay-automated.git"  # UPDATE THIS
+REPO_URL="https://github.com/camaison/audiobookbay-automated.git"  # UPDATE THIS
 NGINX_CONF_SRC="nginx/abb.conf"
 NGINX_CONF_DEST="/etc/nginx/sites-available/abb.bvronan.xyz"
 SYSTEMD_SERVICE_SRC="systemd/audiobookbay.service"
@@ -27,11 +28,21 @@ fi
 echo ""
 echo "Step 1: Installing dependencies..."
 apt-get update
-apt-get install -y docker.io docker-compose git certbot python3-certbot-nginx
 
-# Enable and start Docker
-systemctl enable docker
-systemctl start docker
+# Check if Docker is already installed
+if ! command -v docker &> /dev/null; then
+    echo "Installing Docker..."
+    apt-get install -y docker.io docker-compose
+    systemctl enable docker
+    systemctl start docker
+else
+    echo "Docker is already installed, skipping..."
+    # Just ensure docker-compose is installed
+    apt-get install -y docker-compose || true
+fi
+
+# Install other dependencies
+apt-get install -y git certbot python3-certbot-nginx
 
 # Step 2: Clone or update repository
 echo ""
@@ -87,7 +98,7 @@ echo ""
 echo "Step 7: Setting up SSL certificate..."
 if [ ! -d "/etc/letsencrypt/live/abb.bvronan.xyz" ]; then
     echo "Obtaining SSL certificate..."
-    certbot --nginx -d abb.bvronan.xyz --non-interactive --agree-tos --email YOUR_EMAIL@example.com  # UPDATE THIS
+    certbot --nginx -d abb.bvronan.xyz --non-interactive --agree-tos --email cyprianmaison@outlook.com  # UPDATE THIS
 else
     echo "SSL certificate already exists"
 fi
