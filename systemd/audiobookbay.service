@@ -1,0 +1,18 @@
+[Unit]
+Description=AudiobookBay Automated Docker Service
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/audiobookbay-automated
+ExecStartPre=/usr/bin/docker-compose -f docker-compose.prod.yaml pull
+ExecStart=/usr/bin/docker-compose -f docker-compose.prod.yaml up -d
+ExecStop=/usr/bin/docker-compose -f docker-compose.prod.yaml down
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

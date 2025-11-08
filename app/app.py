@@ -1,4 +1,5 @@
-import os, re, requests, hashlib, time, sqlite3, threading, subprocess, logging
+import os, re, requests, hashlib, time, threading, subprocess, logging
+from datetime import timedelta
 from flask import Flask, request, render_template, jsonify, redirect, url_for, flash, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from bs4 import BeautifulSoup
@@ -8,10 +9,23 @@ from deluge_web_client import DelugeWebClient as delugewebclient
 from dotenv import load_dotenv
 from urllib.parse import urlparse
 import json
-import bcrypt
+try:
+    # Try importing as a package (when running from parent directory)
+    from app.auth_db import init_auth_db, authenticate_user, create_user, get_user_by_username, is_admin_user, get_all_users
+except ModuleNotFoundError:
+    # Import as local module (when running from app directory)
+    from auth_db import init_auth_db, authenticate_user, create_user, get_user_by_username, is_admin_user, get_all_users
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-me')
+
+# Flask session configuration (CRITICAL for authentication)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-me')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True if using HTTPS
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 
 # Configure logging
 logging.basicConfig(
@@ -28,6 +42,7 @@ logger = logging.getLogger(__name__)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.session_protection = "strong"  # Protect against session hijacking
 
 #Load environment variables
 load_dotenv()
@@ -61,167 +76,76 @@ SAVE_PATH_BASE = os.getenv("SAVE_PATH_BASE")
 NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
 NAV_LINK_URL = os.getenv("NAV_LINK_URL")
 
-# User management with AudiobookShelf database
-ABS_DATABASE = os.getenv('ABS_DATABASE_PATH', '/home/cyprian/Audiobooks/config-abs/absdatabase.sqlite')
-
+# User class for authentication
 class User(UserMixin):
     def __init__(self, username, user_type='user'):
         self.id = username
         self.username = username
         self.user_type = user_type
-    
+
+    def get_id(self):
+        """Override get_id to ensure proper serialization for Flask-Login sessions"""
+        return str(self.id)
+
     def is_admin(self):
         return self.user_type == 'root'
 
-def get_db_connection():
-    """Get connection to AudiobookShelf database"""
-    try:
-        # Use direct path and disable problematic features
-        db_path = os.path.abspath(ABS_DATABASE)
-        # Use a more isolated connection approach
-        conn = sqlite3.connect(db_path, isolation_level=None)
-        conn.row_factory = sqlite3.Row
-        
-        # Disable all triggers, foreign keys, and schema validation
-        conn.execute("PRAGMA foreign_keys = OFF")
-        conn.execute("PRAGMA triggers = OFF") 
-        conn.execute("PRAGMA ignore_check_constraints = ON")
-        conn.execute("PRAGMA writable_schema = OFF")
-        
-        return conn
-    except Exception as e:
-        logger.error(f"Failed to connect to AudiobookShelf database: {e}")
-        return None
+# Global variable for app database path
+app_db_path = None
 
-def verify_user_credentials(username, password):
-    """Verify user credentials against AudiobookShelf database"""
-    logger.debug(f"Attempting authentication for user: {username}")
+def get_app_database():
+    """Get or create clean application database for favorites/downloads"""
+    global app_db_path
+
+    import os
+    import subprocess
+
+    if not app_db_path:
+        # Store app database in the app directory
+        app_db_path = os.path.join(os.path.dirname(__file__), 'app_data.sqlite')
     
-    try:
-        # Try using sqlite3 command line tool to bypass schema issues
-        import subprocess
-        import tempfile
-        import json
+    # Create app database with custom tables if it doesn't exist
+    if not os.path.exists(app_db_path):
+        logger.info("Creating application database for favorites and downloads...")
         
-        # Create a query to get user data using command line sqlite3
-        query = f"SELECT username, pash, type, isActive FROM users WHERE username = '{username}' AND isActive = 1 LIMIT 1;"
+        create_app_tables = """
+        CREATE TABLE IF NOT EXISTS user_favorites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            book_title TEXT NOT NULL,
+            book_url TEXT NOT NULL,
+            book_cover TEXT,
+            book_author TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, book_url)
+        );
         
-        # Use sqlite3 command with -bail flag to stop on first error but continue with data
-        result = subprocess.run([
-            'sqlite3', 
-            ABS_DATABASE, 
-            '-json',
-            query
-        ], capture_output=True, text=True, timeout=10)
+        CREATE TABLE IF NOT EXISTS user_downloads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            torrent_hash TEXT NOT NULL,
+            book_title TEXT NOT NULL,
+            book_url TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, torrent_hash, book_url)
+        );
         
-        if result.returncode == 0 and result.stdout.strip():
-            # Parse JSON output from sqlite3
-            data = json.loads(result.stdout.strip())
-            if data and len(data) > 0:
-                user_data = data[0]
-                db_username = user_data.get('username')
-                stored_hash = user_data.get('pash')
-                user_type = user_data.get('type')
-                is_active = user_data.get('isActive')
-                
-                if not stored_hash:
-                    logger.debug(f"No password hash for user {username}")
-                    return None
-                
-                # AudiobookShelf uses bcrypt - verify password directly
-                if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
-                    logger.info(f"Authentication successful for {username}")
-                    return {
-                        'username': db_username,
-                        'type': user_type,
-                        'is_active': is_active
-                    }
-                else:
-                    logger.warning(f"Password verification failed for {username}")
-                    return None
+        CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(user_id);
+        CREATE INDEX IF NOT EXISTS idx_user_downloads_user ON user_downloads(user_id);
+        """
         
-        # If subprocess approach fails, try direct connection one more time
-        logger.debug("Command line sqlite3 failed, trying direct connection...")
-        
-        # Last attempt with most minimal connection
-        conn = sqlite3.connect(ABS_DATABASE, isolation_level=None)
-        cursor = conn.cursor()
-        cursor.execute("SELECT username, pash, type, isActive FROM users WHERE username = ? AND isActive = 1 LIMIT 1", (username,))
-        result = cursor.fetchone()
-        conn.close()
-        
-        if result:
-            db_username, stored_hash, user_type, is_active = result
-            if stored_hash and bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
-                logger.info(f"Authentication successful for {username}")
-                return {
-                    'username': db_username,
-                    'type': user_type,
-                    'is_active': is_active
-                }
-                
-        logger.warning(f"User {username} not found or authentication failed")
-        return None
-            
-    except Exception as e:
-        logger.error(f"Authentication failed for {username}: {e}")
-        return None
-
-def verify_password_hash(password, stored_hash):
-    """Verify bcrypt password hash used by AudiobookShelf"""
-    try:
-        # AudiobookShelf uses bcrypt hashing with $2a$ format
-        # Convert $2a$ to $2b$ for Python bcrypt compatibility
-        if stored_hash.startswith('$2a$'):
-            converted_hash = '$2b$' + stored_hash[4:]
-        else:
-            converted_hash = stored_hash
-        
-        return bcrypt.checkpw(password.encode('utf-8'), converted_hash.encode('utf-8'))
-    except Exception as e:
-        logger.error(f"Password verification failed with hash conversion: {e}")
-        # Fallback: try original hash format
         try:
-            return bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8'))
-        except Exception as e2:
-            logger.error(f"Password verification failed with original hash: {e2}")
-            return False
-
-def get_user_by_username(username):
-    """Get user details by username"""
-    try:
-        # Try using sqlite3 command line tool to bypass schema issues
-        import subprocess
-        import json
-        
-        # Create a query to get user data using command line sqlite3
-        query = f"SELECT username, type, isActive FROM users WHERE username = '{username}' AND isActive = 1 LIMIT 1;"
-        
-        # Use sqlite3 command with JSON output
-        result = subprocess.run([
-            'sqlite3', 
-            ABS_DATABASE, 
-            '-json',
-            query
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            # Parse JSON output from sqlite3
-            data = json.loads(result.stdout.strip())
-            if data and len(data) > 0:
-                user_data = data[0]
-                return {
-                    'username': user_data.get('username'),
-                    'type': user_data.get('type'),
-                    'is_active': user_data.get('isActive')
-                }
-        
-        logger.warning(f"User {username} not found via command line sqlite3")
-        return None
-        
-    except Exception as e:
-        logger.error(f"Failed to get user {username}: {e}")
-        return None
+            subprocess.run([
+                'sqlite3', 
+                app_db_path
+            ], input=create_app_tables, capture_output=True, text=True, timeout=10)
+            
+            logger.info("Application database created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create application database: {e}")
+            return None
+    
+    return app_db_path
 
 # User-specific data management
 USER_DATA_DIR = 'user_data'
@@ -247,11 +171,16 @@ def save_user_search_history(username, history):
         json.dump(history, f)
 
 def load_user_favorites(username):
-    """Load favorites for specific user from database"""
+    """Load favorites for specific user from clean app database"""
     try:
+        app_db = get_app_database()
+        if not app_db:
+            logger.error("Could not access application database")
+            return []
+            
         result = subprocess.run([
             'sqlite3', 
-            ABS_DATABASE, 
+            app_db, 
             '-json',
             f"SELECT book_title, book_url, book_cover, book_author FROM user_favorites WHERE user_id = '{username}' ORDER BY created_at DESC"
         ], capture_output=True, text=True, timeout=10)
@@ -286,8 +215,13 @@ def save_user_favorites(username, favorites):
     pass
 
 def add_user_favorite(username, book_title, book_url, book_cover="", book_author=""):
-    """Add favorite to user's favorites in database"""
+    """Add favorite to user's favorites in clean app database"""
     try:
+        app_db = get_app_database()
+        if not app_db:
+            logger.error("Could not access application database")
+            return False
+            
         # Escape single quotes properly
         safe_title = book_title.replace("'", "''")
         safe_author = book_author.replace("'", "''")
@@ -295,7 +229,7 @@ def add_user_favorite(username, book_title, book_url, book_cover="", book_author
         
         subprocess.run([
             'sqlite3', 
-            ABS_DATABASE, 
+            app_db, 
             query
         ], capture_output=True, text=True, timeout=10)
         return True
@@ -304,11 +238,16 @@ def add_user_favorite(username, book_title, book_url, book_cover="", book_author
         return False
 
 def remove_user_favorite(username, book_url):
-    """Remove favorite from user's favorites in database"""
+    """Remove favorite from user's favorites in clean app database"""
     try:
+        app_db = get_app_database()
+        if not app_db:
+            logger.error("Could not access application database")
+            return False
+            
         subprocess.run([
             'sqlite3', 
-            ABS_DATABASE, 
+            app_db, 
             f"DELETE FROM user_favorites WHERE user_id = '{username}' AND book_url = '{book_url}';"
         ], capture_output=True, text=True, timeout=10)
         return True
@@ -316,47 +255,17 @@ def remove_user_favorite(username, book_url):
         logger.error(f"Failed to remove favorite: {e}")
         return False
 
-def is_admin_user(username):
-    """Check if user has admin/root permissions"""
-    try:
-        result = subprocess.run([
-            'sqlite3', 
-            ABS_DATABASE, 
-            '-json',
-            f"SELECT type FROM users WHERE username = '{username}'"
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            data = json.loads(result.stdout.strip())
-            return data[0]['type'] == 'root' if data else False
-        return False
-    except Exception as e:
-        logger.error(f"Failed to check admin status: {e}")
-        return False
-
-def get_all_users():
-    """Get all users from database for admin dashboard"""
-    try:
-        result = subprocess.run([
-            'sqlite3', 
-            ABS_DATABASE, 
-            '-json',
-            "SELECT username, type, isActive, lastSeen FROM users ORDER BY username"
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            return json.loads(result.stdout.strip())
-        return []
-    except Exception as e:
-        logger.error(f"Failed to get users: {e}")
-        return []
-
 def get_all_user_downloads():
-    """Get download summary for all users from database"""
+    """Get download summary for all users from clean app database"""
     try:
+        app_db = get_app_database()
+        if not app_db:
+            logger.error("Could not access application database")
+            return {}
+            
         result = subprocess.run([
             'sqlite3', 
-            ABS_DATABASE, 
+            app_db, 
             '-json',
             "SELECT user_id, COUNT(*) as download_count FROM user_downloads GROUP BY user_id"
         ], capture_output=True, text=True, timeout=10)
@@ -370,11 +279,16 @@ def get_all_user_downloads():
         return {}
 
 def get_detailed_user_downloads():
-    """Get detailed download history for all users (admin only)"""
+    """Get detailed download history for all users from clean app database (admin only)"""
     try:
+        app_db = get_app_database()
+        if not app_db:
+            logger.error("Could not access application database")
+            return []
+            
         result = subprocess.run([
             'sqlite3', 
-            ABS_DATABASE, 
+            app_db, 
             '-json',
             "SELECT user_id, torrent_hash, book_title, book_url, created_at FROM user_downloads ORDER BY created_at DESC"
         ], capture_output=True, text=True, timeout=10)
@@ -387,11 +301,16 @@ def get_detailed_user_downloads():
         return []
 
 def load_user_downloads(username):
-    """Load download history for specific user from database"""
+    """Load download history for specific user from clean app database"""
     try:
+        app_db = get_app_database()
+        if not app_db:
+            logger.error("Could not access application database")
+            return []
+            
         result = subprocess.run([
             'sqlite3', 
-            ABS_DATABASE, 
+            app_db, 
             '-json',
             f"SELECT torrent_hash, book_title, book_url, created_at FROM user_downloads WHERE user_id = '{username}' ORDER BY created_at DESC"
         ], capture_output=True, text=True, timeout=10)
@@ -410,15 +329,20 @@ def save_user_downloads(username, downloads):
     pass
 
 def add_user_download(username, torrent_hash, book_title, download_url):
-    """Add download to user's download history in database"""
+    """Add download to user's download history in clean app database"""
     try:
+        app_db = get_app_database()
+        if not app_db:
+            logger.error("Could not access application database")
+            return False
+            
         # Escape single quotes properly
         safe_title = book_title.replace("'", "''")
         query = f"INSERT OR IGNORE INTO user_downloads (user_id, torrent_hash, book_title, book_url) VALUES ('{username}', '{torrent_hash}', '{safe_title}', '{download_url}');"
         
         subprocess.run([
             'sqlite3', 
-            ABS_DATABASE, 
+            app_db, 
             query
         ], capture_output=True, text=True, timeout=10)
         return True
@@ -487,7 +411,6 @@ logger.info(f"SAVE_PATH_BASE: {SAVE_PATH_BASE}")
 logger.info(f"NAV_LINK_NAME: {NAV_LINK_NAME}")
 logger.info(f"NAV_LINK_URL: {NAV_LINK_URL}")
 logger.info(f"PAGE_LIMIT: {PAGE_LIMIT}")
-logger.info(f"ABS_DATABASE: {ABS_DATABASE}")
 
 
 @app.context_processor
@@ -2170,18 +2093,49 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        
-        user_data = verify_user_credentials(username, password)
+        logger.info(f"Login attempt for user: {username}")
+
+        user_data = authenticate_user(username, password)
+        logger.info(f"Authentication result for {username}: {user_data is not None}")
+
         if user_data:
             user = User(user_data['username'], user_data['type'])
-            login_user(user)
+
+            # Make session permanent and login with remember=True
+            session.permanent = True
+            login_result = login_user(user, remember=True)
+
+            logger.info(f"login_user() result: {login_result}, current_user.is_authenticated: {current_user.is_authenticated}")
+            logger.info(f"Session permanent: {session.permanent}, User ID in session: {session.get('_user_id')}")
+
             return redirect(url_for('home'))
         else:
+            logger.warning(f"Failed login attempt for user: {username}")
             flash('Invalid username or password')
-    
+
     return render_template('login.html')
 
-# Registration removed - users are managed through AudiobookShelf
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        confirm_password = request.form.get('confirm_password', '')
+
+        # Validate passwords match
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('signup.html')
+
+        # Create user
+        success, message = create_user(username, password)
+        if success:
+            flash(message, 'success')
+            return redirect(url_for('login'))
+        else:
+            flash(message, 'error')
+
+    return render_template('signup.html')
 
 @app.route('/logout')
 @login_required
@@ -3205,7 +3159,11 @@ def admin_status():
         return render_template('admin_status.html', torrents=[], error="Failed to load torrent status")
 
 if __name__ == '__main__':
+    # Initialize authentication database
+    logger.info("Initializing authentication database...")
+    init_auth_db()
+
     # Start auto-stop seeding service
     start_auto_stop_service()
-    
+
     app.run(host='0.0.0.0', port=5078)

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In - AudiobookBay</title>
+    <title>Sign Up - AudiobookBay</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
     <style>
         :root {
@@ -15,6 +15,7 @@
             --accent: #ffcc00;
             --accent-hover: #e6b800;
             --error: #ff4444;
+            --success: #44ff44;
         }
 
         [data-theme="light"] {
@@ -26,6 +27,7 @@
             --accent: #007bff;
             --accent-hover: #0056b3;
             --error: #dc3545;
+            --success: #28a745;
         }
 
         * {
@@ -44,7 +46,7 @@
             justify-content: center;
         }
 
-        .login-container {
+        .signup-container {
             width: 100%;
             max-width: 380px;
             padding: 20px;
@@ -73,7 +75,7 @@
             color: var(--text-muted);
         }
 
-        .login-form {
+        .signup-form {
             background: var(--card);
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -118,7 +120,14 @@
             color: var(--text-muted);
         }
 
-        .login-button {
+        .form-hint {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .signup-button {
             width: 100%;
             height: 48px;
             font-size: 16px;
@@ -131,11 +140,11 @@
             transition: background-color 0.2s;
         }
 
-        .login-button:hover {
+        .signup-button:hover {
             background: var(--accent-hover);
         }
 
-        .login-button:active {
+        .signup-button:active {
             transform: translateY(1px);
         }
 
@@ -149,11 +158,30 @@
             margin-bottom: 24px;
         }
 
+        .success-message {
+            background: rgba(68, 255, 68, 0.1);
+            border: 1px solid rgba(68, 255, 68, 0.2);
+            color: var(--success);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
         .footer-text {
             text-align: center;
             font-size: 14px;
             color: var(--text-muted);
             line-height: 1.5;
+        }
+
+        .footer-text a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer-text a:hover {
+            text-decoration: underline;
         }
 
         .theme-toggle {
@@ -195,14 +223,14 @@
         }
 
         @media (max-width: 480px) {
-            .login-container {
+            .signup-container {
                 padding: 16px;
             }
-            
-            .login-form {
+
+            .signup-form {
                 padding: 24px;
             }
-            
+
             .theme-toggle {
                 top: 16px;
                 right: 16px;
@@ -230,37 +258,44 @@
         </svg>
     </button>
 
-    <div class="login-container">
+    <div class="signup-container">
         <div class="logo-section">
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="AudiobookBay" class="logo">
             <h1 class="app-title">AudiobookBay</h1>
-            <p class="app-subtitle">Sign in to your account</p>
+            <p class="app-subtitle">Create your account</p>
         </div>
 
-        {% with messages = get_flashed_messages() %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for message in messages %}
-                    <div class="error-message">{{ message }}</div>
+                {% for category, message in messages %}
+                    <div class="{{ 'success-message' if category == 'success' else 'error-message' }}">{{ message }}</div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <form method="post" class="login-form">
+        <form method="post" class="signup-form">
             <div class="form-group">
                 <label for="username" class="form-label">Username</label>
-                <input type="text" id="username" name="username" class="form-input" required autocomplete="username" placeholder="Enter your username">
+                <input type="text" id="username" name="username" class="form-input" required autocomplete="username" placeholder="Choose a username" minlength="3">
+                <span class="form-hint">Minimum 3 characters</span>
             </div>
 
             <div class="form-group">
                 <label for="password" class="form-label">Password</label>
-                <input type="password" id="password" name="password" class="form-input" required autocomplete="current-password" placeholder="Enter your password">
+                <input type="password" id="password" name="password" class="form-input" required autocomplete="new-password" placeholder="Choose a password" minlength="6">
+                <span class="form-hint">Minimum 6 characters</span>
             </div>
 
-            <button type="submit" class="login-button">Sign In</button>
+            <div class="form-group">
+                <label for="confirm_password" class="form-label">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" class="form-input" required autocomplete="new-password" placeholder="Confirm your password" minlength="6">
+            </div>
+
+            <button type="submit" class="signup-button">Create Account</button>
         </form>
 
         <p class="footer-text">
-            Don't have an account? <a href="{{ url_for('signup') }}" style="color: var(--accent); text-decoration: none;">Sign up here</a>
+            Already have an account? <a href="{{ url_for('login') }}">Sign in here</a>
         </p>
     </div>
 
@@ -269,7 +304,7 @@
             const html = document.documentElement;
             const currentTheme = html.getAttribute('data-theme');
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
+
             html.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
         }
@@ -278,6 +313,17 @@
         document.addEventListener('DOMContentLoaded', function() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+
+        // Password confirmation validation
+        document.querySelector('.signup-form').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                alert('Passwords do not match!');
+            }
         });
     </script>
 </body>

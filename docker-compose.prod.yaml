@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  audiobookbay-automated:
+    build: .
+    image: audiobookbay-automated:latest
+    container_name: audiobookbay-automated
+    restart: unless-stopped
+    ports:
+      - "5078:5078"
+    volumes:
+      # Persist user authentication database
+      - ./data/users.db:/app/users.db
+      # Persist application data if needed
+      - ./data:/app/data
+    environment:
+      - DOWNLOAD_CLIENT=qbittorrent
+      - DL_SCHEME=http
+      - DL_HOST=${DL_HOST}
+      - DL_PORT=${DL_PORT}
+      - DL_USERNAME=${DL_USERNAME}
+      - DL_PASSWORD=${DL_PASSWORD}
+      - DL_CATEGORY=abb-downloader
+      - ABB_HOSTNAME=audiobookbay.is
+      - PAGE_LIMIT=5
+      - SAVE_PATH_BASE=/audiobooks
+      - NAV_LINK_NAME=AudiobookShelf
+      - NAV_LINK_URL=${NAV_LINK_URL}
+      - SECRET_KEY=${SECRET_KEY}
+    env_file:
+      - .env
+    networks:
+      - abb-network
+
+networks:
+  abb-network:
+    driver: bridge

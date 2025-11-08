@@ -65,6 +65,9 @@ db.sqlite3-journal
 instance/
 .webassets-cache
 
+# Authentication database (contains user credentials)
+app/users.db
+
 # Scrapy stuff:
 .scrapy
 
