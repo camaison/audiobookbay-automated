@@ -8,9 +8,6 @@ services:
     restart: unless-stopped
     ports:
       - "5078:5078"
-    volumes:
-      # Persist user authentication database
-      - ./users.db:/app/users.db
     environment:
       - DOWNLOAD_CLIENT=qbittorrent
       - DL_SCHEME=http
