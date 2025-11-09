@@ -21,7 +21,7 @@ services:
       - DL_CATEGORY=abb-downloader
       - ABB_HOSTNAME=audiobookbay.is
       - PAGE_LIMIT=5
-      - SAVE_PATH_BASE=/audiobooks
+      - SAVE_PATH_BASE=/upload_queue
       - NAV_LINK_NAME=AudiobookShelf
       - NAV_LINK_URL=${NAV_LINK_URL}
       - SECRET_KEY=${SECRET_KEY}
