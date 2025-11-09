@@ -4,8 +4,8 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the app directory contents into the container
-COPY /app /app
+# Copy the app directory contents into the container at /app
+COPY app/ /app/
 
 # Create data directory for persistent storage
 RUN mkdir -p /app/data
