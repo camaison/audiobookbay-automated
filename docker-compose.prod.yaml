@@ -9,9 +9,7 @@ services:
     ports:
       - "5078:5078"
     volumes:
-      # Persist user authentication database
-      - ./data/users.db:/app/users.db
-      # Persist application data if needed
+      # Persist application data directory (includes users.db)
       - ./data:/app/data
     environment:
       - DOWNLOAD_CLIENT=qbittorrent
