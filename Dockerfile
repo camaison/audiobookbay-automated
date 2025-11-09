@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy the app directory contents into the container at /app
 COPY app/ /app/
 
-# Create data directory for persistent storage
-RUN mkdir -p /app/data
+# Create data directory for persistent storage with proper permissions
+RUN mkdir -p /app/data && chmod 777 /app/data
 
 # Install any necessary dependencies
 RUN pip install --no-cache-dir -r /app/requirements.txt
