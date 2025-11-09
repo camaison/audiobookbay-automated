@@ -8,6 +8,9 @@ services:
     restart: unless-stopped
     ports:
       - "5078:5078"
+    volumes:
+      # Persist user authentication database using named volume
+      - user-data:/app
     environment:
       - DOWNLOAD_CLIENT=qbittorrent
       - DL_SCHEME=http
@@ -30,3 +33,7 @@ services:
 networks:
   abb-network:
     driver: bridge
+
+volumes:
+  user-data:
+    driver: local
