@@ -1,4 +1,4 @@
-import os, re, requests, hashlib, time, threading, subprocess, logging
+import os, re, requests, hashlib, time, threading, logging, sqlite3
 from datetime import timedelta
 from flask import Flask, request, render_template, jsonify, redirect, url_for, flash, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -135,11 +135,13 @@ def get_app_database():
         """
         
         try:
-            subprocess.run([
-                'sqlite3', 
-                app_db_path
-            ], input=create_app_tables, capture_output=True, text=True, timeout=10)
-            
+            # Use Python sqlite3 module instead of subprocess
+            conn = sqlite3.connect(app_db_path)
+            cursor = conn.cursor()
+            cursor.executescript(create_app_tables)
+            conn.commit()
+            conn.close()
+
             logger.info("Application database created successfully")
         except Exception as e:
             logger.error(f"Failed to create application database: {e}")
@@ -178,15 +180,19 @@ def load_user_favorites(username):
             logger.error("Could not access application database")
             return []
             
-        result = subprocess.run([
-            'sqlite3', 
-            app_db, 
-            '-json',
-            f"SELECT book_title, book_url, book_cover, book_author FROM user_favorites WHERE user_id = '{username}' ORDER BY created_at DESC"
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            db_favorites = json.loads(result.stdout.strip())
+        # Use Python sqlite3 module instead of subprocess
+        conn = sqlite3.connect(app_db)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT book_title, book_url, book_cover, book_author FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC",
+            (username,)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            db_favorites = [dict(row) for row in rows]
             # Map database fields to template expected fields
             favorites = []
             for fav in db_favorites:
@@ -222,16 +228,15 @@ def add_user_favorite(username, book_title, book_url, book_cover="", book_author
             logger.error("Could not access application database")
             return False
             
-        # Escape single quotes properly
-        safe_title = book_title.replace("'", "''")
-        safe_author = book_author.replace("'", "''")
-        query = f"INSERT OR IGNORE INTO user_favorites (user_id, book_title, book_url, book_cover, book_author) VALUES ('{username}', '{safe_title}', '{book_url}', '{book_cover}', '{safe_author}');"
-        
-        subprocess.run([
-            'sqlite3', 
-            app_db, 
-            query
-        ], capture_output=True, text=True, timeout=10)
+        # Use Python sqlite3 module instead of subprocess
+        conn = sqlite3.connect(app_db)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_favorites (user_id, book_title, book_url, book_cover, book_author) VALUES (?, ?, ?, ?, ?)",
+            (username, book_title, book_url, book_cover, book_author)
+        )
+        conn.commit()
+        conn.close()
         return True
     except Exception as e:
         logger.error(f"Failed to add favorite: {e}")
@@ -245,11 +250,15 @@ def remove_user_favorite(username, book_url):
             logger.error("Could not access application database")
             return False
             
-        subprocess.run([
-            'sqlite3', 
-            app_db, 
-            f"DELETE FROM user_favorites WHERE user_id = '{username}' AND book_url = '{book_url}';"
-        ], capture_output=True, text=True, timeout=10)
+        # Use Python sqlite3 module instead of subprocess
+        conn = sqlite3.connect(app_db)
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM user_favorites WHERE user_id = ? AND book_url = ?",
+            (username, book_url)
+        )
+        conn.commit()
+        conn.close()
         return True
     except Exception as e:
         logger.error(f"Failed to remove favorite: {e}")
@@ -263,15 +272,16 @@ def get_all_user_downloads():
             logger.error("Could not access application database")
             return {}
             
-        result = subprocess.run([
-            'sqlite3', 
-            app_db, 
-            '-json',
-            "SELECT user_id, COUNT(*) as download_count FROM user_downloads GROUP BY user_id"
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            data = json.loads(result.stdout.strip())
+        # Use Python sqlite3 module instead of subprocess
+        conn = sqlite3.connect(app_db)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, COUNT(*) as download_count FROM user_downloads GROUP BY user_id")
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            data = [dict(row) for row in rows]
             return {item['user_id']: item['download_count'] for item in data}
         return {}
     except Exception as e:
@@ -286,15 +296,16 @@ def get_detailed_user_downloads():
             logger.error("Could not access application database")
             return []
             
-        result = subprocess.run([
-            'sqlite3', 
-            app_db, 
-            '-json',
-            "SELECT user_id, torrent_hash, book_title, book_url, created_at FROM user_downloads ORDER BY created_at DESC"
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            return json.loads(result.stdout.strip())
+        # Use Python sqlite3 module instead of subprocess
+        conn = sqlite3.connect(app_db)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, torrent_hash, book_title, book_url, created_at FROM user_downloads ORDER BY created_at DESC")
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            return [dict(row) for row in rows]
         return []
     except Exception as e:
         logger.error(f"Failed to get detailed downloads: {e}")
@@ -308,15 +319,19 @@ def load_user_downloads(username):
             logger.error("Could not access application database")
             return []
             
-        result = subprocess.run([
-            'sqlite3', 
-            app_db, 
-            '-json',
-            f"SELECT torrent_hash, book_title, book_url, created_at FROM user_downloads WHERE user_id = '{username}' ORDER BY created_at DESC"
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            downloads = json.loads(result.stdout.strip())
+        # Use Python sqlite3 module instead of subprocess
+        conn = sqlite3.connect(app_db)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT torrent_hash, book_title, book_url, created_at FROM user_downloads WHERE user_id = ? ORDER BY created_at DESC",
+            (username,)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            downloads = [dict(row) for row in rows]
             # Convert to expected format for backward compatibility
             return [{'hash': d['torrent_hash'], 'title': d['book_title'], 'url': d['book_url'], 'timestamp': d['created_at']} for d in downloads]
         return []
@@ -335,16 +350,16 @@ def add_user_download(username, torrent_hash, book_title, download_url):
         if not app_db:
             logger.error("Could not access application database")
             return False
-            
-        # Escape single quotes properly
-        safe_title = book_title.replace("'", "''")
-        query = f"INSERT OR IGNORE INTO user_downloads (user_id, torrent_hash, book_title, book_url) VALUES ('{username}', '{torrent_hash}', '{safe_title}', '{download_url}');"
-        
-        subprocess.run([
-            'sqlite3', 
-            app_db, 
-            query
-        ], capture_output=True, text=True, timeout=10)
+
+        # Use Python sqlite3 module instead of subprocess
+        conn = sqlite3.connect(app_db)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_downloads (user_id, torrent_hash, book_title, book_url) VALUES (?, ?, ?, ?)",
+            (username, torrent_hash, book_title, download_url)
+        )
+        conn.commit()
+        conn.close()
         return True
     except Exception as e:
         logger.error(f"Failed to add download: {e}")
