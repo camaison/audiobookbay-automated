@@ -10,12 +10,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 logger = logging.getLogger(__name__)
 
-# Database path - use data directory if it exists (Docker), otherwise local
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
-if os.path.exists(DATA_DIR):
-    AUTH_DB_PATH = os.path.join(DATA_DIR, 'users.db')
-else:
-    AUTH_DB_PATH = os.path.join(os.path.dirname(__file__), 'users.db')
+# Database path
+AUTH_DB_PATH = os.path.join(os.path.dirname(__file__), 'users.db')
 
 def init_auth_db():
     """Initialize the authentication database with users table"""

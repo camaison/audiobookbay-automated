@@ -7,11 +7,11 @@ WORKDIR /app
 # Copy the app directory contents into the container at /app
 COPY app/ /app/
 
-# Create data directory for persistent storage with proper permissions
-RUN mkdir -p /app/data && chmod 777 /app/data
-
 # Install any necessary dependencies
 RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Set proper permissions for database file creation
+RUN chmod 777 /app
 
 # Expose the port the app runs on
 EXPOSE 5078
