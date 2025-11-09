@@ -2299,7 +2299,7 @@ def send():
             result = qb.torrents_add(urls=magnet_link, save_path=save_path, category=DL_CATEGORY)
             # Extract hash from magnet link for tracking
             if 'btih:' in magnet_link:
-                torrent_hash = magnet_link.split('btih:')[1].split('&')[0]
+                torrent_hash = magnet_link.split('btih:')[1].split('&')[0].lower()
         elif DOWNLOAD_CLIENT == 'transmission':
             transmission = transmissionrpc(host=DL_HOST, port=DL_PORT, protocol=DL_SCHEME, username=DL_USERNAME, password=DL_PASSWORD)
             result = transmission.add_torrent(magnet_link, download_dir=save_path)
@@ -3163,10 +3163,10 @@ def admin_status():
             
         # Add user ownership info to torrents
         detailed_downloads = get_detailed_user_downloads()
-        hash_to_user = {d['torrent_hash']: d['user_id'] for d in detailed_downloads}
-        
+        hash_to_user = {d['torrent_hash'].lower(): d['user_id'] for d in detailed_downloads}
+
         for torrent in torrent_list:
-            torrent['owner'] = hash_to_user.get(torrent['hash'], 'Unknown')
+            torrent['owner'] = hash_to_user.get(torrent['hash'].lower(), 'Unknown')
         
         return render_template('admin_status.html', torrents=torrent_list)
     except Exception as e:
